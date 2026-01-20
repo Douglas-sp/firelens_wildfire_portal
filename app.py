@@ -59,3 +59,14 @@ if st.sidebar.button("Generate Prediction"):
         st.subheader("Location Awareness")
         map_data = pd.DataFrame({'lat': [lat], 'lon': [lon]})
         st.map(map_data, zoom=10)
+
+# 7. Additional Contextual Information(reasoning)
+st.subheader("Analysis Results")
+if prediction > 65:
+    reason = ""
+    if ndvi < 0.2:
+        reason += "Critical: Vegetation is extremely dry (Low NDVI). "
+    if target_month in [1, 2, 12]:
+        reason += "Warning: This is the peak of the historical dry season."
+    st.info(f"**Reasoning:** {reason}")
+
