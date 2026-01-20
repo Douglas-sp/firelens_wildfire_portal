@@ -72,80 +72,70 @@ import xgboost as xgb
 
 
 
-import streamlit as st
-import pandas as pd
-import xgboost as xgb
+# --- 1. Page Config & Title ---
+st.set_page_config(page_title="FireLens Uganda", page_icon="🔥", layout="wide")
+st.title("🔥 FireLens: Wildfire Severity Portal")
+st.markdown("---")
 
-# 1. Page Configuration
-st.set_page_config(page_title="Wildfire Risk Portal", layout="wide")
-
-# 2. Load the "Frozen" Model
+# --- 2. Load Model ---
+# Using the .ubj file you saved to your local PC
 model = xgb.XGBRegressor()
-model.load_model('fire_model_V1.ubj')  # filename MUST match the set model_file_name
+model.load_model('fire_model_V1.ubj')  # Ensure this file is in the same model directory
 
-# 3. Sidebar: Stakeholder Inputs
-st.sidebar.header("Step 1: Define Environment")
-st.sidebar.markdown("Adjust the parameters to simulate wildfire risk conditions.")
+# --- 3. Sidebar Inputs (Restricted Range) ---
+st.sidebar.header("Input Controls")
 
-# --- Location Selection using Range from Training Data ---
-st.sidebar.subheader("Area of Interest")
-# We set the bounds based on your training data's geographical footprint
-lat = st.sidebar.slider("Latitude (y)", min_value=0.0, max_value=4.0, value=1.40, step=0.01)
-lon = st.sidebar.slider("Longitude (x)", min_value=29.0, max_value=35.0, value=30.89, step=0.01)
+# Locked coordinate ranges based on your Uganda AOI training data
+lat = st.sidebar.slider("Latitude (y)", 0.0, 4.0, 1.40, help="Restricted to study area bounds")
+lon = st.sidebar.slider("Longitude (x)", 29.0, 35.0, 30.89, help="Restricted to study area bounds")
 
-# --- Time & Vegetation ---
-target_year = st.sidebar.number_input("Year of Interest", min_value=2015, max_value=2030, value=2026)
-target_month = st.sidebar.slider("Month of Interest", 1, 12, 1)
-ndvi = st.sidebar.slider("Vegetation Greenness (NDVI)", 0.0, 1.0, 0.3)
+st.sidebar.markdown("---")
+target_year = st.sidebar.selectbox("Prediction Year", [2024, 2025, 2026])
+target_month = st.sidebar.slider("Month", 1, 12, 1)
+ndvi = st.sidebar.slider("Vegetation Health (NDVI)", 0.0, 1.0, 0.3)
 
-# 4. Hidden Logic (Confidence)
-# We remove this from the UI and set it to 'Nominal' (standard) 
-conf_l = 0
-conf_n = 1
+# Background variables (Confidence set to Nominal/High)
+conf_l, conf_n = 0, 1
 
-# Prepare data for model
-input_data = pd.DataFrame([[lon, lat, ndvi, target_month, target_year, conf_l, conf_n]], 
-                           columns=['x', 'y', 'NDVI', 'MONTH', 'YEAR', 'CONFIDENCE_l', 'CONFIDENCE_n'])
-
-# 5. Main Display
-st.title("FIRE LENS 🐦‍🔥🔥Wildfire Severity & Likelihood Portal")
-st.info(f"Current Prediction Scope: {target_year} Forecast")
-
-# 6. Predict and Explain
-if st.sidebar.button("Analyze Fire Risk"):
-    prediction = model.predict(input_data)[0]
+# --- 4. Prediction Execution ---
+if st.sidebar.button("Run Risk Analysis"):
+    # Match the 7-column format from training
+    input_df = pd.DataFrame([[lon, lat, ndvi, target_month, target_year, conf_l, conf_n]], 
+                            columns=['x', 'y', 'NDVI', 'MONTH', 'YEAR', 'CONFIDENCE_l', 'CONFIDENCE_n'])
     
-    # Visual Layout
+    prediction = model.predict(input_df)[0]
+    
+    # Layout Columns
     col1, col2 = st.columns([1, 1])
     
     with col1:
-        st.subheader("Predicted Severity")
+        st.subheader("Severity Assessment")
         if prediction > 65:
-            st.error(f"## CRITICAL: {prediction:.2f} K")
-            status = "High"
+            st.error(f"### ALERT: CRITICAL SEVERITY ({prediction:.2f} K)")
         elif prediction > 62:
-            st.warning(f"## MODERATE: {prediction:.2f} K")
-            status = "Medium"
+            st.warning(f"### WARNING: MODERATE SEVERITY ({prediction:.2f} K)")
         else:
-            st.success(f"## LOW: {prediction:.2f} K")
-            status = "Low"
+            st.success(f"### SAFE: LOW SEVERITY ({prediction:.2f} K)")
 
-        # --- Automated Explanation (Reasoning) ---
-        st.subheader("Why this prediction?")
-        reasons = []
-        if ndvi < 0.25:
-            reasons.append("• **Low NDVI:** Vegetation is dry and acts as ready fuel.")
-        if target_month in [1, 2, 12]:
-            reasons.append("• **Seasonality:** Historically, this month is within the peak dry season.")
-        if target_year > 2015:
-            reasons.append(f"• **Year Note:** Prediction uses 2015 baseline logic applied to {target_year}.")
+        # --- THE REASONING ENGINE ---
+        st.info("#### Prediction Logic")
         
-        if not reasons:
-            reasons.append("• Conditions appear stable based on historical patterns.")
+        # Reason 1: Seasonality
+        if target_month in [1, 2, 12]:
+            st.write("📅 **Seasonality:** High. We are in a historical dry window for this region.")
+        else:
+            st.write("📅 **Seasonality:** Low/Moderate. Historically outside peak burning months.")
             
-        for r in reasons:
-            st.write(r)
+        # Reason 2: Fuel Load (NDVI)
+        if ndvi < 0.2:
+            st.write("🌿 **Fuel State:** Critical. Vegetation is extremely dry/stressed.")
+        elif ndvi < 0.4:
+            st.write("🌿 **Fuel State:** Moderate. Vegetation is drying out.")
+        else:
+            st.write("🌿 **Fuel State:** Healthy. Moisture levels likely inhibit intense burning.")
 
     with col2:
-        st.subheader("Geographic Context")
-        st.map(pd.DataFrame({'lat': [lat], 'lon': [lon]}), zoom=8)
+        st.subheader("Regional Context")
+        # Displaying the map centered on the user's selection
+        map_df = pd.DataFrame({'lat': [lat], 'lon': [lon]})
+        st.map(map_df, zoom=7)
