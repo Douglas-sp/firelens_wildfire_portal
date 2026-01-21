@@ -144,73 +144,95 @@
 
 import streamlit as st
 import pandas as pd
+import numpy as np
 import xgboost as xgb
 import folium
+from folium.plugins import HeatMap
 from streamlit_folium import st_folium
 
-# --- 1. Conservation Site Presets ---
+# --- 1. Site Presets with Detailed Bounds ---
+# (Lat, Lon, Buffer_Size)
 SITES = {
-    "Murchison Falls National Park": (2.2500, 31.7900, "Savanna/Woodland"),
-    "Budongo Central Forest Reserve": (1.8200, 31.5900, "Tropical High Forest"),
-    "Bugoma Central Forest Reserve": (1.2600, 30.9700, "Tropical High Forest"),
-    "Kabwoya Wildlife Reserve": (1.4934, 31.1032, "Rift Escarpment/Savanna"),
-    "Kibale Forest (KCA)": (0.4364, 30.3667, "Evergreen/Primate Habitat")
+    "Murchison Falls NP": (2.25, 31.79, 0.35),
+    "Budongo Forest": (1.82, 31.59, 0.15),
+    "Bugoma Forest": (1.26, 30.97, 0.15),
+    "Kabwoya Wildlife Reserve": (1.49, 31.10, 0.10),
+    "Kibale Forest (KCA)": (0.44, 30.37, 0.20)
 }
 
-# --- 2. Load Model & Setup ---
-st.set_page_config(layout="wide", page_title="Albertine Rift FireLens")
+MONTH_MAP = {
+    "January": 1, "February": 2, "March": 3, "April": 4, 
+    "May": 5, "June": 6, "July": 7, "August": 8, 
+    "September": 9, "October": 10, "November": 11, "December": 12
+}
+
+# --- 2. Load Model ---
 model = xgb.XGBRegressor()
-model.load_model('fire_model_V1.ubj')
+model.load_model('fire_model_V1.ubj')  # Ensure this file is in the same model directory
 
-# --- 3. Sidebar: Regional Controls ---
-st.sidebar.header("Albertine Rift Navigation")
-selected_name = st.sidebar.selectbox("Choose Protected Area", list(SITES.keys()))
-site_lat, site_lon, ecosystem = SITES[selected_name]
+# --- 3. Sidebar UI ---
+st.sidebar.title("Albertine Rift Portal")
 
-st.sidebar.markdown(f"**Ecosystem:** {ecosystem}")
-st.sidebar.divider()
+selected_name = st.sidebar.selectbox("Select Protected Area / AOI", list(SITES.keys()))
+selected_month_name = st.sidebar.select_slider("Forecast Month", options=list(MONTH_MAP.keys()))
+target_month = MONTH_MAP[selected_month_name]
 
-# Forecast Inputs
-target_month = st.sidebar.slider("Forecast Month", 1, 12, 1)
-ndvi_val = st.sidebar.slider("Simulated NDVI (Greenness)", 0.0, 1.0, 0.3)
+ndvi_sim = st.sidebar.slider("Simulated NDVI (Vegetation Status)", 0.0, 1.0, 0.25)
+st.sidebar.caption(" 0.25 represents typical dry-season vegetation.")
 
-# --- 4. Main Interactive Map ---
-st.title(f"📍 Analysis: {selected_name}")
-st.write(f"This portal predicts fire intensity based on historical patterns in the {ecosystem} ecosystem.")
+# --- 4. Heatmap Generation Engine ---
+def get_aoi_predictions(lat, lon, buffer, ndvi, month):
+    # Generates a grid over the park + community area
+    lats = np.linspace(lat - buffer, lat + buffer, 25)
+    lons = np.linspace(lon - buffer, lon + buffer, 25)
+    data = []
+    for lt in lats:
+        for ln in lons:
+            input_df = pd.DataFrame([[ln, lt, ndvi, month, 2026, 0, 1]], 
+                                     columns=['x', 'y', 'NDVI', 'MONTH', 'YEAR', 'CONFIDENCE_l', 'CONFIDENCE_n'])
+            pred = float(model.predict(input_df)[0])
+            if pred > 61: # Only show 'Alert' level heat
+                data.append([float(lt), float(ln), pred])
+    return data
 
-m = folium.Map(location=[site_lat, site_lon], zoom_start=11, 
-               tiles="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-               attr="Esri World Imagery")
+# --- 5. Main Map Interface ---
+st.header(f"🔥 Fire Severity Forecast: {selected_name}")
+st.subheader(f"Baseline for {selected_month_name} 2026")
 
-# Add a marker for the site center
-folium.Marker([site_lat, site_lon], popup=f"Center of {selected_name}", icon=folium.Icon(color='blue')).add_to(m)
+site_lat, site_lon, site_buffer = SITES[selected_name]
 
-# Execute the map and capture clicks
-map_output = st_folium(m, width="100%", height=500)
+# Create Map with "Hybrid" Detail (Labels + Satellite)
+m = folium.Map(location=[site_lat, site_lon], zoom_start=11)
 
-# --- 5. Prediction Engine ---
-# Use either the preset center or a specific point the user clicked
-active_lat = map_output['last_clicked']['lat'] if map_output['last_clicked'] else site_lat
-active_lon = map_output['last_clicked']['lng'] if map_output['last_clicked'] else site_lon
+# Add Google Hybrid Tiles for Labels, Roads, and Features
+folium.TileLayer(
+    tiles = 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+    attr = 'Google',
+    name = 'Satellite with Labels',
+    overlay = False,
+    control = False
+).add_to(m)
 
-input_df = pd.DataFrame([[active_lon, active_lat, ndvi_val, target_month, 2026, 0, 1]], 
-                         columns=['x', 'y', 'NDVI', 'MONTH', 'YEAR', 'CONFIDENCE_l', 'CONFIDENCE_n'])
+# Highlight the AOI (The Park + Bordering Communities)
+folium.Rectangle(
+    bounds=[[site_lat - site_buffer, site_lon - site_buffer], 
+            [site_lat + site_buffer, site_lon + site_buffer]],
+    color="yellow",
+    weight=2,
+    fill=True,
+    fill_opacity=0.1,
+    popup="Active AOI (Park & Community Buffer)"
+).add_to(m)
 
-prediction = model.predict(input_df)[0]
+# Add the Risk Heatmap
+heat_data = get_aoi_predictions(site_lat, site_lon, site_buffer, ndvi_sim, target_month)
+if heat_data:
+    HeatMap(heat_data, radius=15, blur=10, min_opacity=0.4).add_to(m)
 
-# --- 6. Results Panel (NASA Worldview Style) ---
-res_col1, res_col2 = st.columns([1, 2])
-with res_col1:
-    st.metric("Predicted Severity", f"{prediction:.2f} K")
-    if prediction > 65:
-        st.error("🔥 STATUS: CRITICAL RISK")
-    elif prediction > 62:
-        st.warning("⚠️ STATUS: MODERATE RISK")
-    else:
-        st.success("✅ STATUS: LOW RISK")
+st_folium(m, width="100%", height=600)
 
-with res_col2:
-    st.info(f"**Site Context for {selected_name}:**")
-    st.write(f"- **Latitude/Longitude:** `{active_lat:.4f}, {active_lon:.4f}`")
-    st.write(f"- **Vegetation Status:** NDVI of {ndvi_val} indicates {'stressed/dry' if ndvi_val < 0.3 else 'healthy'} biomass.")
-    st.write(f"- **Historical Context:** In Month {target_month}, {selected_name} typically shows { 'high' if target_month in [1,2,12] else 'low' } thermal activity.")
+# --- 6. Summary for Stakeholders ---
+st.markdown("---")
+st.info(f"**Stakeholder Insight:** The heatmap above shows areas where thermal intensity is predicted to exceed 61K. "
+        f"In **{selected_month_name}**, historical patterns for the Albertine Rift suggest { 'peak risk' if target_month in [1,2,12] else 'reduced risk' } "
+        f"levels for {selected_name}.")
