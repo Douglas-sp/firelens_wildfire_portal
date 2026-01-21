@@ -196,7 +196,7 @@ def get_aoi_predictions(lat, lon, buffer, ndvi, month):
     return data
 
 # --- 5. Main Map Interface ---
-st.header(f"🔥 Fire Severity Forecast: {selected_name}")
+st.header(f"Fire Severity Forecast: {selected_name}")
 st.subheader(f"Baseline for {selected_month_name} 2026")
 
 site_lat, site_lon, site_buffer = SITES[selected_name]
@@ -213,15 +213,37 @@ folium.TileLayer(
     control = False
 ).add_to(m)
 
-# Highlight the AOI (The Park + Bordering Communities)
+# # Highlight the AOI (The Park + Bordering Communities)
+# folium.Rectangle(
+#     bounds=[[site_lat - site_buffer, site_lon - site_buffer], 
+#             [site_lat + site_buffer, site_lon + site_buffer]],
+#     color="yellow",
+#     weight=2,
+#     fill=True,
+#     fill_opacity=0.1,
+#     popup="Active AOI (Park & Community Buffer)"
+# ).add_to(m)
+
+# Highlight the Park Core
 folium.Rectangle(
     bounds=[[site_lat - site_buffer, site_lon - site_buffer], 
             [site_lat + site_buffer, site_lon + site_buffer]],
-    color="yellow",
+    color="darkgreen",
     weight=2,
+    fill=False,
+    popup="Protected Area Core"
+).add_to(m)
+
+# Highlight the Community Buffer (e.g., adding 0.05 degrees)
+folium.Rectangle(
+    bounds=[[site_lat - (site_buffer + 0.05), site_lon - (site_buffer + 0.05)], 
+            [site_lat + (site_buffer + 0.05), site_lon + (site_buffer + 0.05)]],
+    color="orange",
+    dash_array='5, 5',
+    weight=1,
     fill=True,
-    fill_opacity=0.1,
-    popup="Active AOI (Park & Community Buffer)"
+    fill_opacity=0.05,
+    popup="Bordering Community Zone"
 ).add_to(m)
 
 # Add the Risk Heatmap
