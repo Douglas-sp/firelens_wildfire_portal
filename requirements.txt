@@ -2,3 +2,5 @@ streamlit
 XGBoost
 pandas
 scikit-learn
+folium
+streamlit_folium

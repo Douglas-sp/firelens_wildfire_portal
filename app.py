@@ -1,6 +1,6 @@
-import streamlit as st
-import pandas as pd
-import xgboost as xgb
+# import streamlit as st
+# import pandas as pd
+# import xgboost as xgb
 
 # # 1. Page Configuration
 # st.set_page_config(page_title="🔥Wildfire Risk Portal", layout="wide")
@@ -72,70 +72,145 @@ import xgboost as xgb
 
 
 
-# --- 1. Page Config & Title ---
-st.set_page_config(page_title="FireLens Uganda", page_icon="🔥", layout="wide")
-st.title("🔥 FireLens: Wildfire Severity Portal")
-st.markdown("---")
+# # --- 1. Page Config & Title ---
+# st.set_page_config(page_title="FireLens Uganda", page_icon="🔥", layout="wide")
+# st.title("FireLens: Wildfire Severity Portal")
+# st.markdown("---")
 
-# --- 2. Load Model ---
-# Using the .ubj file you saved to your local PC
-model = xgb.XGBRegressor()
-model.load_model('fire_model_V1.ubj')  # Ensure this file is in the same model directory
+# # --- 2. Load Model ---
+# # Using the .ubj file you saved on my local PC
+# model = xgb.XGBRegressor()
+# model.load_model('fire_model_V1.ubj')  # Ensure this file is in the same model directory
 
-# --- 3. Sidebar Inputs (Restricted Range) ---
-st.sidebar.header("Input Controls")
+# # --- 3. Sidebar Inputs (Restricted Range) ---
+# st.sidebar.header("Input Controls")
 
-# Locked coordinate ranges based on your Uganda AOI training data
-lat = st.sidebar.slider("Latitude (y)", 0.0, 4.0, 1.40, help="Restricted to study area bounds")
-lon = st.sidebar.slider("Longitude (x)", 29.0, 35.0, 30.89, help="Restricted to study area bounds")
+# # Locked coordinate ranges based on your Uganda AOI training data
+# lat = st.sidebar.slider("Latitude (y)", 0.0, 4.0, 1.40, help="Restricted to study area bounds")
+# lon = st.sidebar.slider("Longitude (x)", 29.0, 35.0, 30.89, help="Restricted to study area bounds")
 
-st.sidebar.markdown("---")
-target_year = st.sidebar.selectbox("Prediction Year", [2024, 2025, 2026])
-target_month = st.sidebar.slider("Month", 1, 12, 1)
-ndvi = st.sidebar.slider("Vegetation Health (NDVI)", 0.0, 1.0, 0.3)
+# st.sidebar.markdown("---")
+# target_year = st.sidebar.selectbox("Prediction Year", [2024, 2025, 2026])
+# target_month = st.sidebar.slider("Month", 1, 12, 1)
+# ndvi = st.sidebar.slider("Vegetation Health (NDVI)", 0.0, 1.0, 0.3)
 
-# Background variables (Confidence set to Nominal/High)
-conf_l, conf_n = 0, 1
+# # Background variables (Confidence set to Nominal/High)
+# conf_l, conf_n = 0, 1
 
-# --- 4. Prediction Execution ---
-if st.sidebar.button("Run Risk Analysis"):
-    # Match the 7-column format from training
-    input_df = pd.DataFrame([[lon, lat, ndvi, target_month, target_year, conf_l, conf_n]], 
-                            columns=['x', 'y', 'NDVI', 'MONTH', 'YEAR', 'CONFIDENCE_l', 'CONFIDENCE_n'])
+# # --- 4. Prediction Execution ---
+# if st.sidebar.button("Run Risk Analysis"):
+#     # Match the 7-column format from training
+#     input_df = pd.DataFrame([[lon, lat, ndvi, target_month, target_year, conf_l, conf_n]], 
+#                             columns=['x', 'y', 'NDVI', 'MONTH', 'YEAR', 'CONFIDENCE_l', 'CONFIDENCE_n'])
     
-    prediction = model.predict(input_df)[0]
+#     prediction = model.predict(input_df)[0]
     
-    # Layout Columns
-    col1, col2 = st.columns([1, 1])
+#     # Layout Columns
+#     col1, col2 = st.columns([1, 1])
     
-    with col1:
-        st.subheader("Severity Assessment")
-        if prediction > 65:
-            st.error(f"### ALERT: CRITICAL SEVERITY ({prediction:.2f} K)")
-        elif prediction > 62:
-            st.warning(f"### WARNING: MODERATE SEVERITY ({prediction:.2f} K)")
-        else:
-            st.success(f"### SAFE: LOW SEVERITY ({prediction:.2f} K)")
+#     with col1:
+#         st.subheader("Severity Assessment")
+#         if prediction > 65:
+#             st.error(f"### ALERT: CRITICAL SEVERITY ({prediction:.2f} K)")
+#         elif prediction > 62:
+#             st.warning(f"### WARNING: MODERATE SEVERITY ({prediction:.2f} K)")
+#         else:
+#             st.success(f"### SAFE: LOW SEVERITY ({prediction:.2f} K)")
 
-        # --- THE REASONING ENGINE ---
-        st.info("#### Prediction Logic")
+#         # --- THE REASONING ENGINE ---
+#         st.info("#### Prediction Logic")
         
-        # Reason 1: Seasonality
-        if target_month in [1, 2, 12]:
-            st.write("📅 **Seasonality:** High. We are in a historical dry window for this region.")
-        else:
-            st.write("📅 **Seasonality:** Low/Moderate. Historically outside peak burning months.")
+#         # Reason 1: Seasonality
+#         if target_month in [1, 2, 12]:
+#             st.write("**Seasonality:** High. We are in a historical dry window for this region.")
+#         else:
+#             st.write("**Seasonality:** Low/Moderate. Historically outside peak burning months.")
             
-        # Reason 2: Fuel Load (NDVI)
-        if ndvi < 0.2:
-            st.write("🌿 **Fuel State:** Critical. Vegetation is extremely dry/stressed.")
-        elif ndvi < 0.4:
-            st.write("🌿 **Fuel State:** Moderate. Vegetation is drying out.")
-        else:
-            st.write("🌿 **Fuel State:** Healthy. Moisture levels likely inhibit intense burning.")
+#         # Reason 2: Fuel Load (NDVI)
+#         if ndvi < 0.2:
+#             st.write("**Fuel State:** Critical. Vegetation is extremely dry/stressed.")
+#         elif ndvi < 0.4:
+#             st.write("**Fuel State:** Moderate. Vegetation is drying out.")
+#         else:
+#             st.write("**Fuel State:** Healthy. Moisture levels likely inhibit intense burning.")
 
-    with col2:
-        st.subheader("Regional Context")
-        # Displaying the map centered on the user's selection
-        map_df = pd.DataFrame({'lat': [lat], 'lon': [lon]})
-        st.map(map_df, zoom=7)
+#     with col2:
+#         st.subheader("Regional Context")
+#         # Displaying the map centered on the user's selection
+#         map_df = pd.DataFrame({'lat': [lat], 'lon': [lon]})
+#         st.map(map_df, zoom=7)
+
+
+
+import streamlit as st
+import pandas as pd
+import xgboost as xgb
+import folium
+from streamlit_folium import st_folium
+
+# --- 1. Conservation Site Presets ---
+SITES = {
+    "Murchison Falls National Park": (2.2500, 31.7900, "Savanna/Woodland"),
+    "Budongo Central Forest Reserve": (1.8200, 31.5900, "Tropical High Forest"),
+    "Bugoma Central Forest Reserve": (1.2600, 30.9700, "Tropical High Forest"),
+    "Kabwoya Wildlife Reserve": (1.4934, 31.1032, "Rift Escarpment/Savanna"),
+    "Kibale Forest (KCA)": (0.4364, 30.3667, "Evergreen/Primate Habitat")
+}
+
+# --- 2. Load Model & Setup ---
+st.set_page_config(layout="wide", page_title="Albertine Rift FireLens")
+model = xgb.XGBRegressor()
+model.load_model('fire_model_V1.ubj')
+
+# --- 3. Sidebar: Regional Controls ---
+st.sidebar.header("Albertine Rift Navigation")
+selected_name = st.sidebar.selectbox("Choose Protected Area", list(SITES.keys()))
+site_lat, site_lon, ecosystem = SITES[selected_name]
+
+st.sidebar.markdown(f"**Ecosystem:** {ecosystem}")
+st.sidebar.divider()
+
+# Forecast Inputs
+target_month = st.sidebar.slider("Forecast Month", 1, 12, 1)
+ndvi_val = st.sidebar.slider("Simulated NDVI (Greenness)", 0.0, 1.0, 0.3)
+
+# --- 4. Main Interactive Map ---
+st.title(f"📍 Analysis: {selected_name}")
+st.write(f"This portal predicts fire intensity based on historical patterns in the {ecosystem} ecosystem.")
+
+m = folium.Map(location=[site_lat, site_lon], zoom_start=11, 
+               tiles="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+               attr="Esri World Imagery")
+
+# Add a marker for the site center
+folium.Marker([site_lat, site_lon], popup=f"Center of {selected_name}", icon=folium.Icon(color='blue')).add_to(m)
+
+# Execute the map and capture clicks
+map_output = st_folium(m, width="100%", height=500)
+
+# --- 5. Prediction Engine ---
+# Use either the preset center or a specific point the user clicked
+active_lat = map_output['last_clicked']['lat'] if map_output['last_clicked'] else site_lat
+active_lon = map_output['last_clicked']['lng'] if map_output['last_clicked'] else site_lon
+
+input_df = pd.DataFrame([[active_lon, active_lat, ndvi_val, target_month, 2026, 0, 1]], 
+                         columns=['x', 'y', 'NDVI', 'MONTH', 'YEAR', 'CONFIDENCE_l', 'CONFIDENCE_n'])
+
+prediction = model.predict(input_df)[0]
+
+# --- 6. Results Panel (NASA Worldview Style) ---
+res_col1, res_col2 = st.columns([1, 2])
+with res_col1:
+    st.metric("Predicted Severity", f"{prediction:.2f} K")
+    if prediction > 65:
+        st.error("🔥 STATUS: CRITICAL RISK")
+    elif prediction > 62:
+        st.warning("⚠️ STATUS: MODERATE RISK")
+    else:
+        st.success("✅ STATUS: LOW RISK")
+
+with res_col2:
+    st.info(f"**Site Context for {selected_name}:**")
+    st.write(f"- **Latitude/Longitude:** `{active_lat:.4f}, {active_lon:.4f}`")
+    st.write(f"- **Vegetation Status:** NDVI of {ndvi_val} indicates {'stressed/dry' if ndvi_val < 0.3 else 'healthy'} biomass.")
+    st.write(f"- **Historical Context:** In Month {target_month}, {selected_name} typically shows { 'high' if target_month in [1,2,12] else 'low' } thermal activity.")
