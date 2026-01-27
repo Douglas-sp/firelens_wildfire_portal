@@ -182,7 +182,7 @@ st.sidebar.caption(" 0.25 represents typical dry-season vegetation.")
 
 # --- 4. Heatmap Generation Engine ---
 def get_aoi_predictions(lat, lon, buffer, ndvi, month):
-    # Generates a grid over the park + community area
+    # Generates a grid over the park/forest + community area
     lats = np.linspace(lat - buffer, lat + buffer, 25)
     lons = np.linspace(lon - buffer, lon + buffer, 25)
     data = []
@@ -249,9 +249,12 @@ folium.Rectangle(
 # Add the Risk Heatmap
 heat_data = get_aoi_predictions(site_lat, site_lon, site_buffer, ndvi_sim, target_month)
 if heat_data:
-    HeatMap(heat_data, radius=15, blur=10, min_opacity=0.4).add_to(m)
-
+    # HeatMap(heat_data, radius=15, blur=10, min_opacity=0.4).add_to(m)
+    # Change radius from 15 to 25 and blur from 10 to 15
+    HeatMap(heat_data, radius=25, blur=15, min_opacity=0.4).add_to(m)
 st_folium(m, width="100%", height=600)
+
+
 
 # --- 6. Summary for Stakeholders ---
 st.markdown("---")
