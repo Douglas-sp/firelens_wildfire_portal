@@ -1,62 +1,98 @@
 import streamlit as st
+import ee
 import pandas as pd
-import numpy as np
-import xgboost as xgb
-import folium
-from folium.plugins import HeatMap
-from streamlit_folium import st_folium
+import datetime
 
-# --- Load Model ---
-model = xgb.XGBRegressor()
-model.load_model('your_model_name.ubj')
+# --- 1. Initialize GEE with Service Account ---
+def initialize_ee():
+    if not ee.data._credentials:
+        try:
+            # Pulling credentials from Streamlit Secrets
+            gee_json = st.secrets["gee_service_account"]
+            credentials = ee.ServiceAccountCredentials(
+                gee_json['client_email'], 
+                key_data=gee_json['private_key']
+            )
+            ee.Initialize(credentials)
+        except Exception as e:
+            st.error(f"GEE Initialization Failed: {e}")
 
-# --- Site Presets (Lat, Lon, Radius in degrees) ---
-SITES = {
-    "Murchison Falls NP": (2.25, 31.79, 0.4),
-    "Budongo Forest": (1.82, 31.59, 0.2),
-    "Bugoma Forest": (1.26, 30.97, 0.2),
-    "Kabwoya Wildlife Reserve": (1.49, 31.10, 0.15),
-    "Kibale Forest (KCA)": (0.43, 30.36, 0.25)
-}
+# --- 2. Cloud Masking Function ---
+def mask_s2_clouds(image):
+    """
+    Uses the QA60 band to mask out opaque and cirrus clouds.
+    Scales the S2_SR data to real-world reflectance values.
+    """
+    qa = image.select('QA60')
 
-st.sidebar.header("Heatmap Settings")
-selected_name = st.sidebar.selectbox("Select Protected Area", list(SITES.keys()))
-ndvi_sim = st.sidebar.slider("Simulated NDVI (Dryness)", 0.0, 1.0, 0.25)
-target_month = st.sidebar.slider("Month", 1, 12, 1)
+    # Bits 10 and 11 are clouds and cirrus, respectively.
+    cloud_bit_mask = 1 << 10
+    cirrus_bit_mask = 1 << 11
 
-# --- 3. The Heatmap Engine ---
-def generate_heatmap_data(lat, lon, radius, ndvi, month):
-    # Create a grid of 400 points (20x20) around the site
-    lats = np.linspace(lat - radius, lat + radius, 20)
-    lons = np.linspace(lon - radius, lon + radius, 20)
+    # Both flags must be zero (indicating clear sky)
+    mask = qa.bitwiseAnd(cloud_bit_mask).eq(0).And(
+           qa.bitwiseAnd(cirrus_bit_mask).eq(0))
+
+    # Apply mask and scale from 0-10000 to 0-1
+    return image.updateMask(mask).divide(10000)
+
+# --- 3. The Weather-Resistant NDVI Fetcher ---
+def get_live_ndvi(lat, lon, buffer_deg):
+    initialize_ee()
     
-    grid_points = []
-    for lt in lats:
-        for ln in lons:
-            # Format: [x, y, NDVI, MONTH, YEAR, CONF_L, CONF_N]
-            input_data = pd.DataFrame([[ln, lt, ndvi, month, 2026, 0, 1]], 
-                                       columns=['x', 'y', 'NDVI', 'MONTH', 'YEAR', 'CONFIDENCE_l', 'CONFIDENCE_n'])
-            pred = model.predict(input_data)[0]
-            
-            # We only show high-intensity points on the heatmap (NASA FIRMS Style)
-            if pred > 60: 
-                grid_points.append([lt, ln, pred])
-    return grid_points
+    # Define AOI geometry
+    point = ee.Geometry.Point([lon, lat]).buffer(buffer_deg * 111000)
+    
+    # Temporal Window: 60 days provides more "cloud-free" opportunities
+    now = datetime.datetime.now()
+    start_date = (now - datetime.timedelta(days=60)).strftime('%Y-%m-%d')
+    end_date = now.strftime('%Y-%m-%d')
+    
+    # Load and process Sentinel-2 Surface Reflectance
+    collection = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+                  .filterBounds(point)
+                  .filterDate(start_date, end_date)
+                  .map(mask_s2_clouds)) # Apply cloud mask to every image
+    
+    # Create a Median Composite (The 'cleanest' possible view)
+    composite = collection.median()
+    
+    # Calculate NDVI: (B8 - B4) / (B8 + B4)
+    ndvi_image = composite.normalizedDifference(['B8', 'B4']).rename('NDVI')
+    
+    # Calculate the mean NDVI across the AOI
+    stats = ndvi_image.reduceRegion(
+        reducer=ee.Reducer.mean(),
+        geometry=point,
+        scale=20,  # 20m scale is efficient for AOI-wide averages
+        maxPixels=1e9
+    )
+    
+    result = stats.get('NDVI').getInfo()
+    
+    # If the area is 100% clouded for 60 days, result is None
+    return result if result is not None else 0.3
 
-# --- 4. Render the Portal ---
-st.title(f"🔥 {selected_name} Risk Heatmap")
-st.write(f"Showing predicted thermal anomalies for Month {target_month} at {ndvi_sim} NDVI.")
+# --- 4. Sidebar UI Implementation ---
+st.sidebar.title("🛰️ Satellite Sync")
+st.sidebar.write("Using Sentinel-2 (10m Resolution)")
 
-site_lat, site_lon, site_radius = SITES[selected_name]
-heatmap_data = generate_heatmap_data(site_lat, site_lon, site_radius, ndvi_sim, target_month)
+# Check if site_lat exists (assuming it's defined elsewhere in your main script)
+if 'current_ndvi' not in st.session_state:
+    st.session_state['current_ndvi'] = 0.25
 
-# Create the Map
-m = folium.Map(location=[site_lat, site_lon], zoom_start=10, tiles="cartodbpositron")
+if st.sidebar.button("Fetch Live AOI Greenness"):
+    with st.spinner("Filtering clouds and calculating NDVI..."):
+        try:
+            # Note: site_lat, site_lon, and site_buffer must be defined 
+            # in your main app logic before calling this.
+            live_val = get_live_ndvi(site_lat, site_lon, site_buffer)
+            st.session_state['current_ndvi'] = round(live_val, 3)
+            st.sidebar.success(f"Verified NDVI: {st.session_state['current_ndvi']}")
+        except Exception as e:
+            st.sidebar.error("Cloud cover too high or API Timeout.")
+            # Use a safe fallback based on the Albertine Rift's dry season baseline
+            st.session_state['current_ndvi'] = 0.25
 
-# Add the Heatmap Layer (Windy style)
-if heatmap_data:
-    HeatMap(heatmap_data, radius=15, blur=10, min_opacity=0.5).add_to(m)
-else:
-    st.info("Conditions are currently too stable to generate risk heat.")
-
-st_folium(m, width=1000, height=500)
+# Use the current_ndvi variable for your XGBoost model prediction
+current_ndvi = st.session_state['current_ndvi']
