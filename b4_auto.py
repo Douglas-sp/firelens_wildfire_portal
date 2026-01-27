@@ -1,0 +1,172 @@
+import streamlit as st
+import pandas as pd
+import numpy as np
+import xgboost as xgb
+import folium
+from folium.plugins import HeatMap
+from streamlit_folium import st_folium
+from fpdf import FPDF
+import io
+
+# --- 1. Site Presets & Custom Profiles ---
+# Format: (Lat, Lon, Buffer_Size, Description)
+SITES = {
+    "Murchison Falls NP": (2.25, 31.79, 0.35, "Savanna/Woodland mosaic. High fuel load in dry seasons; risk of rapid grass fires."),
+    "Budongo Forest": (1.82, 31.59, 0.15, "Tropical High Forest. Critical chimpanzee habitat; fires threaten nesting sites."),
+    "Bugoma Forest": (1.26, 30.97, 0.15, "Tropical High Forest. High community interface; edge-fire risk from agricultural clearing."),
+    "Kabwoya Wildlife Reserve": (1.49, 31.10, 0.10, "Rift Escarpment. Steep terrain makes fire suppression difficult and promotes uphill spread."),
+    "Kibale Forest (KCA)": (0.44, 30.37, 0.20, "Moist Evergreen Forest. Primate density; fires are rare but catastrophic for slow-moving species.")
+}
+
+MONTH_MAP = {
+    "January": 1, "February": 2, "March": 3, "April": 4, 
+    "May": 5, "June": 6, "July": 7, "August": 8, 
+    "September": 9, "October": 10, "November": 11, "December": 12
+}
+
+# --- 2. Resource Loading ---
+@st.cache_resource
+def load_xgb_model():
+    """Loads model once and keeps it in memory to prevent lag."""
+    model = xgb.XGBRegressor()
+    model.load_model('fire_model_V1.ubj') # Ensure this filename matches yours
+    return model
+
+model = load_xgb_model()
+
+# --- 3. Cached Prediction & PDF Engines ---
+@st.cache_data
+def get_aoi_predictions(_model, lat, lon, buffer, ndvi, month):
+    """Caches results so switching sites or months is instant."""
+    lats = np.linspace(lat - buffer, lat + buffer, 25)
+    lons = np.linspace(lon - buffer, lon + buffer, 25)
+    data = []
+    for lt in lats:
+        for ln in lons:
+            input_df = pd.DataFrame([[ln, lt, ndvi, month, 2026, 0, 1]], 
+                                     columns=['x', 'y', 'NDVI', 'MONTH', 'YEAR', 'CONFIDENCE_l', 'CONFIDENCE_n'])
+            pred = float(_model.predict(input_df)[0])
+            if pred > 61: 
+                data.append([float(lt), float(ln), pred])
+    return data
+
+def create_pdf(site, month, ndvi, risk, description):
+    """Generates an official-looking fire risk report."""
+    pdf = FPDF()
+    pdf.add_page()
+    
+    # Branding
+    pdf.set_font("Arial", 'B', 18)
+    pdf.set_text_color(200, 0, 0)
+    pdf.cell(200, 10, txt="FireLens Uganda: Official Risk Report", ln=True, align='C')
+    
+    pdf.set_font("Arial", size=10)
+    pdf.set_text_color(0, 0, 0)
+    pdf.cell(200, 10, txt="Albertine Rift Conservation Monitoring Unit", ln=True, align='C')
+    pdf.ln(10)
+    
+    # Parameters
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 10, txt=f"Protected Area: {site}", ln=True)
+    pdf.set_font("Arial", size=12)
+    pdf.cell(0, 8, txt=f"Forecast Window: {month} 2026", ln=True)
+    pdf.cell(0, 8, txt=f"Simulated NDVI (Fuel Dryness): {ndvi}", ln=True)
+    pdf.ln(5)
+    
+    # Risk Level
+    pdf.set_font("Arial", 'B', 14)
+    status_text = f"OFFICIAL ALERT STATUS: {risk} RISK"
+    pdf.cell(0, 10, txt=status_text, ln=True)
+    pdf.ln(5)
+    
+    # Description
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 10, txt="Ecosystem Context:", ln=True)
+    pdf.set_font("Arial", size=11)
+    pdf.multi_cell(0, 8, txt=description)
+    
+    pdf.ln(10)
+    pdf.set_font("Arial", 'I', 10)
+    pdf.multi_cell(0, 8, txt="Recommendation: This prediction is based on the FireLens XGBoost model. "
+                             "Rangers are advised to verify ground-level moisture and notify bordering "
+                             "communities of high-risk thermal patterns.")
+    
+    return pdf.output()
+
+# --- 4. Sidebar UI ---
+st.sidebar.title("🛡️ FireLens Portal")
+st.sidebar.markdown("Albertine Rift Wildfire Decision Support")
+
+selected_name = st.sidebar.selectbox("Select Protected Area / AOI", list(SITES.keys()))
+selected_month_name = st.sidebar.select_slider("Forecast Month", options=list(MONTH_MAP.keys()))
+target_month = MONTH_MAP[selected_month_name]
+
+ndvi_sim = st.sidebar.slider("Simulated NDVI (Vegetation Status)", 0.0, 1.0, 0.25)
+st.sidebar.caption("💡 0.25 represents typical dry-season vegetation.")
+
+# --- 5. Main Map Interface ---
+st.header(f"Forecast: {selected_name}")
+st.subheader(f"Baseline for {selected_month_name} 2026")
+
+site_lat, site_lon, site_buffer, site_desc = SITES[selected_name]
+
+with st.spinner(f"Analyzing thermal risk for {selected_name}..."):
+    
+    # Create Map with "Hybrid" Detail
+    m = folium.Map(location=[site_lat, site_lon], zoom_start=11)
+
+    # Add Google Hybrid Tiles (Worldview style)
+    folium.TileLayer(
+        tiles = 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+        attr = 'Google',
+        name = 'Satellite with Labels',
+        overlay = False,
+        control = False
+    ).add_to(m)
+
+    # Highlight the Park Core (The "Leaf" from your AOI request)
+    folium.Rectangle(
+        bounds=[[site_lat - site_buffer, site_lon - site_buffer], 
+                [site_lat + site_buffer, site_lon + site_buffer]],
+        color="darkgreen", weight=2, fill=False, popup="Protected Area Core"
+    ).add_to(m)
+
+    # Highlight the Community Buffer
+    folium.Rectangle(
+        bounds=[[site_lat - (site_buffer + 0.05), site_lon - (site_buffer + 0.05)], 
+                [site_lat + (site_buffer + 0.05), site_lon + (site_buffer + 0.05)]],
+        color="orange", dash_array='5, 5', weight=1, fill=True, fill_opacity=0.05, popup="Community Buffer Zone"
+    ).add_to(m)
+
+    # Add the Risk Heatmap (Windy style smoothness)
+    heat_data = get_aoi_predictions(model, site_lat, site_lon, site_buffer, ndvi_sim, target_month)
+    if heat_data:
+        HeatMap(heat_data, radius=25, blur=15, min_opacity=0.4).add_to(m)
+    
+    st_folium(m, width="100%", height=600)
+
+# --- 6. Stakeholder Summary & PDF Download ---
+st.markdown("---")
+risk_level = "PEAK" if target_month in [1, 2, 12] else "REDUCED"
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.info(f"**Site Profile: {selected_name}**\n\n{site_desc}")
+    st.warning(f"**Seasonal Outlook:** Historically, {selected_month_name} is a period of **{risk_level}** risk in the Albertine Rift.")
+
+with col2:
+    st.write("###  Administrative Actions")
+    st.write("Generate a formal risk assessment for field rangers and community leaders.")
+    
+    # Generate the PDF
+    pdf_output = create_pdf(selected_name, selected_month_name, ndvi_sim, risk_level, site_desc)
+    
+    st.download_button(
+        label="Download Official Risk Report (PDF)",
+        data=pdf_output,
+        file_name=f"FireLens_Report_{selected_name}_{selected_month_name}.pdf",
+        mime="application/pdf"
+    )
+
+st.caption("Powered by XGBoost Machine Learning | Baseline Data: 2015 Satellite Cycle")

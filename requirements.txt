@@ -4,3 +4,6 @@ pandas
 scikit-learn
 folium
 streamlit_folium
+requests
+fpdf
+io
