@@ -19,3 +19,21 @@ MONTH_MAP = {
 # --- Timezone Settings ---
 UGANDA_TZ_OFFSET = 3  # GMT+3 (East Africa Time)
 CURRENT_YEAR = 2026
+
+# --- Alert Thresholds ---
+THRESHOLD_NDVI_CRITICAL = 0.22  # Below this, vegetation is dangerously dry
+THRESHOLD_PREDICTION_RISK = 80.0 # XGBoost confidence percentage
+THRESHOLD_BRIGHTNESS_K = 330    # NASA VIIRS Brightness temperature for "High Intensity"
+
+# --- Automation Settings ---
+AUTO_ALERT_ENABLED = True  # Master toggle for automatic dispatch
+# Define which levels qualify for automatic broadcast
+AUTO_DISPATCH_LEVELS = ["CRITICAL"]
+
+# --- Notification Settings ---
+# These would typically come from st.secrets in a production environment
+TELEGRAM_BOT_TOKEN = "YOUR_BOT_TOKEN"
+TELEGRAM_CHAT_ID = "YOUR_CHAT_ID"
+
+
+

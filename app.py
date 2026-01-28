@@ -7,11 +7,16 @@ from folium.plugins import HeatMap
 from streamlit_folium import st_folium
 import datetime
 
+
 # Internal Module Imports
 from config import SITES, MONTH_MAP, CURRENT_YEAR
 from services.gee_service import get_live_ndvi
 from services.nasa_service import fetch_nasa_fires
 from utils.pdf_generator import create_pdf
+from services.alert_service import evaluate_risk_level
+from services.notification_service import send_telegram_alert
+from config import AUTO_ALERT_ENABLED
+from services.model_service import get_aoi_predictions
 
 # --- 1. SETUP ---
 st.set_page_config(page_title="FireLens Uganda", layout="wide")
@@ -72,3 +77,40 @@ if not live_fires.empty:
 risk_level = "PEAK" if MONTH_MAP[target_month] in [1, 2, 12] else "REDUCED"
 pdf_data = create_pdf(selected_site, st.session_state['ndvi'], risk_level, desc, live_fires, map_snapshot)
 st.download_button("📄 Download Tactical Report", data=pdf_data, file_name="Report.pdf")
+
+# --- ALERTING & NOTIFICATION ---
+# Evaluate Risk
+heat_data = get_aoi_predictions(model, lat, lon, buffer, st.session_state['ndvi'], MONTH_MAP[target_month])
+risk_level, alert_msgs, is_dispatch_worthy = evaluate_risk_level(
+    st.session_state['ndvi'], 
+    heat_data, 
+    live_fires
+)
+
+# Display Status Banner
+if risk_level != "NORMAL":
+    st.error(f"### ⚠️ {risk_level} RISK DETECTED")
+    for msg in alert_msgs:
+        st.write(msg)
+
+    # 3. AUTOMATIC DISPATCH LOGIC
+# We only auto-fire if: 
+# - Auto mode is ON 
+# - The risk is CRITICAL
+# - We haven't already sent an alert in this specific session
+if AUTO_ALERT_ENABLED and is_dispatch_worthy:
+    sent_key = f"sent_{selected_site}_{datetime.date.today()}"
+    
+    if sent_key not in st.session_state:
+        with st.status("🚀 Critical Risk! Auto-dispatching Telegram alert...", expanded=False):
+            success, info = send_telegram_alert(selected_site, risk_level, alert_msgs)
+            if success:
+                st.session_state[sent_key] = True # Mark as sent
+                st.toast("✅ Auto-Alert Sent to Rangers", icon="📢")
+            else:
+                st.error("Auto-dispatch failed. Check connection. :{info}")
+
+# 4. Manual Fallback
+if st.button("📢 Manual Broadcast (Resend)"):
+    send_telegram_alert(selected_site, risk_level, alert_msgs)
+    st.toast("Manual alert dispatched.")
