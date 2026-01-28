@@ -23,25 +23,25 @@ firelens_uganda/
 
 1. ##### *config.py*
    __Responsibility:__ Stores static data so we don't clutter the main logic.\
-   __Content:__ The SITES dictionary (coordinates, descriptions), MONTH_MAP, and global settings like Page Layout config.
+   __Content:__ The `SITES` dictionary (coordinates, descriptions), `MONTH_MAP`, and global settings like Page Layout config.
 
 3. ##### *services/gee_service.py*
    __Responsibility:__ Talks to the satellite backend.\
-   __Content:__ initialize_gee(), mask_s2_clouds(), and get_live_ndvi(). This isolates the complex Earth Engine authentication logic from the UI.
+   __Content:__ `initialize_gee()`, `mask_s2_clouds()`, and `get_live_ndvi()`. This isolates the complex Earth Engine authentication logic from the UI.
 
 4. ##### *services/nasa_service.py*
    __Responsibility:__ Fetches live fire data.\
-   __Content:__ fetch_nasa_fires(). If we add the alert system later, this file will also contain the logic to check if those fires are near sensitive areas.
+   __Content:__ `fetch_nasa_fires()`. If we add the alert system later, this file will also contain the logic to check if those fires are near sensitive areas.
 
-5. ##### *services/model_service.py*
+5. `##### *services/model_service.py*`
    __Responsibility:__ Manages the AI.\
-   __Content:__ load_xgb_model() and get_aoi_predictions().
+   __Content:__ `load_xgb_model()` and `get_aoi_predictions()`.
 
-5. ##### *utils/pdf_generator.py*
+5. `##### *utils/pdf_generator.py*`
    __Responsibility:__ Generates the tactical report.\
-   __Content:__ The large create_pdf() function. Moving this out will save about 70 lines of code from your main app file.
+   __Content:__ The large `create_pdf()` function.
 
-7. ##### *app.py (The Cleaned-Up Main File)*
+7. ##### *app.py (The Main File)*
    __Responsibility:__ The Dashboard UI only.\
    __Content:__ Sidebar inputs, session state management, and assembling the visual blocks (Map, Table, Download Button) by calling the functions from the modules above.
 
