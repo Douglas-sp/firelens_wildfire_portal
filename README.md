@@ -1,4 +1,4 @@
-"# firelens_wildfire_portal" 
+# firelens_wildfire_portal DIRECTORY_MAP 
 
 ```firelens_uganda/
 ├── .streamlit/
