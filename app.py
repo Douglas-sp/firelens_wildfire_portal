@@ -221,7 +221,7 @@ with st.spinner("Updating prediction layers..."):
 
     if show_nasa:
         live_fires = fetch_nasa_fires(site_lat, site_lon, site_buffer)
-        if not live_fires.empty:
+        if not live_fires.empty: 
             for _, row in live_fires.iterrows():
                 folium.CircleMarker(
                     location=[row['latitude'], row['longitude']],

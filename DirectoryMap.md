@@ -1,5 +1,3 @@
-"# firelens_wildfire_portal" 
-
 firelens_uganda/
 ├── .streamlit/
 │   └── secrets.toml          # API Keys (NASA, GEE)
