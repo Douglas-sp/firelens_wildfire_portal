@@ -45,7 +45,6 @@ def mask_s2_clouds(image):
 def get_live_ndvi(lat, lon, buffer_deg):
     initialize_gee()
     point = ee.Geometry.Point([lon, lat]).buffer(buffer_deg * 111000)
-    # Use GMT+3 for time filtering
     now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
     start_date = (now - datetime.timedelta(days=60)).strftime('%Y-%m-%d')
     collection = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
@@ -101,28 +100,36 @@ def create_pdf(site, month, ndvi, risk, description, live_fires_df, map_image=No
     pdf.add_page()
     
     # Header
-    pdf.set_font("Arial", 'B', 18)
-    pdf.set_text_color(200, 0, 0)
-    pdf.cell(200, 10, txt="FireLens Uganda: Tactical Operational Report", ln=True, align='C')
-    pdf.ln(10)
+    pdf.set_font("Arial", 'B', 20)
+    pdf.set_text_color(180, 0, 0)
+    pdf.cell(200, 15, txt="FireLens Uganda: Strategic Incident Report", ln=True, align='C')
+    pdf.ln(5)
     
-    # Localized Time
     eat_time = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
     
-    # Metadata
+    # 1. NEW TACTICAL SUMMARY BOX
+    num_total = len(live_fires_df)
+    num_high = len(live_fires_df[live_fires_df['bright_ti4'] >= 330]) if num_total > 0 else 0
+    
+    pdf.set_fill_color(240, 240, 240)
     pdf.set_font("Arial", 'B', 12)
     pdf.set_text_color(0, 0, 0)
-    pdf.cell(0, 10, txt=f"AREA AUDIT: {site}", ln=True)
+    pdf.cell(0, 10, txt=f"  FIELD SUMMARY: {site}", ln=True, fill=True)
+    
     pdf.set_font("Arial", size=10)
-    pdf.cell(0, 7, txt=f"Timestamp: {eat_time.strftime('%Y-%m-%d %H:%M')} GMT+3 (EAT)", ln=True)
-    pdf.cell(0, 7, txt=f"Satellite NDVI: {ndvi} | Forecast Risk: {risk}", ln=True)
-    pdf.ln(5)
-    pdf.multi_cell(0, 7, txt=f"Site Context: {description}")
+    pdf.cell(95, 8, txt=f"  Total Active Anomalies: {num_total}", border='LT')
+    pdf.cell(95, 8, txt=f"  High Priority (Critical): {num_high}", border='RT', ln=True)
+    pdf.cell(95, 8, txt=f"  Timestamp: {eat_time.strftime('%Y-%m-%d %H:%M')} EAT", border='LB')
+    pdf.cell(95, 8, txt=f"  Forecasted Risk Level: {risk}", border='RB', ln=True)
+    pdf.ln(10)
+
+    # Site Context
+    pdf.set_font("Arial", 'I', 10)
+    pdf.multi_cell(0, 6, txt=f"Site Context: {description}")
     pdf.ln(5)
 
-    # 1. Map Image Integration
+    # 2. Map Image Integration
     if map_image is not None:
-        # Save temp image for PDF insertion
         img = Image.open(map_image)
         temp_path = "map_snapshot.png"
         img.save(temp_path)
@@ -130,30 +137,27 @@ def create_pdf(site, month, ndvi, risk, description, live_fires_df, map_image=No
         pdf.ln(5)
         if os.path.exists(temp_path):
             os.remove(temp_path)
-    else:
-        pdf.set_font("Arial", 'I', 8)
-        pdf.cell(0, 10, txt="[No tactical map snapshot attached]", ln=True)
 
-    # 2. Live Detections Section
+    # 3. Coordinate Table
     pdf.set_font("Arial", 'B', 12)
     pdf.set_fill_color(230, 230, 230)
-    pdf.cell(0, 10, txt="TACTICAL FIRE COORDINATES", ln=True, fill=True)
+    pdf.cell(0, 10, txt="TACTICAL DETECTION LOG", ln=True, fill=True)
     pdf.ln(2)
 
     if not live_fires_df.empty:
         pdf.set_font("Arial", 'B', 9)
-        pdf.cell(35, 7, "Latitude", 1); pdf.cell(35, 7, "Longitude", 1)
-        pdf.cell(30, 7, "Intensity (K)", 1); pdf.cell(40, 7, "Priority", 1)
-        pdf.ln()
+        pdf.cell(35, 7, "Latitude", 1, 0, 'C')
+        pdf.cell(35, 7, "Longitude", 1, 0, 'C')
+        pdf.cell(30, 7, "Temp (K)", 1, 0, 'C')
+        pdf.cell(40, 7, "Priority", 1, 1, 'C')
         
         pdf.set_font("Arial", size=9)
         for _, row in live_fires_df.iterrows():
-            priority = "HIGH" if row['bright_ti4'] >= 330 else "Standard"
-            pdf.cell(35, 7, str(round(row['latitude'], 5)), 1)
-            pdf.cell(35, 7, str(round(row['longitude'], 5)), 1)
-            pdf.cell(30, 7, str(row['bright_ti4']), 1)
-            pdf.cell(40, 7, priority, 1)
-            pdf.ln()
+            priority = "RED ALERT" if row['bright_ti4'] >= 330 else "Standard"
+            pdf.cell(35, 7, str(round(row['latitude'], 5)), 1, 0, 'C')
+            pdf.cell(35, 7, str(round(row['longitude'], 5)), 1, 0, 'C')
+            pdf.cell(30, 7, str(row['bright_ti4']), 1, 0, 'C')
+            pdf.cell(40, 7, priority, 1, 1, 'C')
     
     return bytes(pdf.output())
 
@@ -177,7 +181,6 @@ site_lat, site_lon, site_buffer, site_desc = SITES[selected_name]
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("📸 Operational Snapshot")
-# Added feature for PDF Screenshot
 map_snapshot = st.sidebar.file_uploader("Upload Map Screenshot for Report", type=['png', 'jpg', 'jpeg'])
 
 st.sidebar.markdown("---")
@@ -202,7 +205,7 @@ show_nasa = st.sidebar.checkbox("Show NASA Live Fires (24h)", value=True)
 # --- 7. Main Map Interface ---
 eat_now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
 st.header(f"Operational Dashboard: {selected_name}")
-st.subheader(f"Current Condition: {eat_now.strftime('%H:%M')} EAT | NDVI {current_ndvi}")
+st.subheader(f"Current Condition: {eat_now.strftime('%H:%M')} EAT (GMT+3) | NDVI {current_ndvi}")
 
 live_fires = pd.DataFrame()
 
@@ -232,28 +235,23 @@ with st.spinner("Updating prediction layers..."):
     
     st_folium(m, width="100%", height=550)
 
-# --- 8. Tactical Detection Table with Google Maps Links ---
+# --- 8. Tactical Detection Table ---
 if not live_fires.empty:
     st.markdown("### 📍 Active Fire Navigation Table")
     
     table_data = live_fires[['latitude', 'longitude', 'bright_ti4', 'acq_time']].copy()
-    
-    # Priority Logic
     table_data['Priority'] = table_data['bright_ti4'].apply(lambda x: "🚨 HIGH" if x >= 330 else "⚠️ Standard")
-    
-    # 3. Google Maps Link Generation
     table_data['Google Maps'] = table_data.apply(
-        lambda row: f"https://www.google.com/maps?q={row['latitude']},{row['longitude']}", axis=1
+        lambda row: f"https://www.google.com/maps/search/?api=1&query={row['latitude']},{row['longitude']}", axis=1
     )
     
-    # Reorder and Rename
-    table_data = table_data[['Priority', 'latitude', 'longitude', 'bright_ti4', 'acq_time', 'Google Maps']]
-    table_data.columns = ['Status', 'Lat', 'Lon', 'Intensity (K)', 'Time (UTC)', 'Navigation Link']
+    display_df = table_data[['Priority', 'latitude', 'longitude', 'bright_ti4', 'Google Maps']]
+    display_df.columns = ['Status', 'Lat', 'Lon', 'Intensity (K)', 'Navigation Link']
 
     st.dataframe(
-        table_data,
+        display_df,
         column_config={
-            "Navigation Link": st.column_config.LinkColumn("Open in Maps")
+            "Navigation Link": st.column_config.LinkColumn("Open in Maps", display_text="📍 Navigate")
         },
         use_container_width=True,
         hide_index=True
@@ -268,9 +266,8 @@ col1, col2 = st.columns(2)
 with col1:
     st.info(f"**Site Profile:** {site_desc}")
 with col2:
-    # Pass map_snapshot to the PDF generator
     pdf_output = create_pdf(selected_name, selected_month_name, current_ndvi, risk_level, site_desc, live_fires, map_snapshot)
-    st.download_button(label="Download Risk Report (PDF)", data=pdf_output, 
+    st.download_button(label="📄 Download Tactical Report (PDF)", data=pdf_output, 
                        file_name=f"FireLens_Report_{selected_name}.pdf", mime="application/pdf")
 
-st.caption("Data: NASA FIRMS (Live) | Google Earth Engine (Live NDVI) | XGBoost (Predictive)")
+st.caption("Data Source: NASA FIRMS (VIIRS) | GEE (Sentinel-2) | Local Time: EAT (GMT+3)")
