@@ -21,15 +21,15 @@ firelens_uganda/
  ## Module Breakdown  
  Here is how we will distribute the current code:
 
-1. # *config.py* <br>
+1. ### *config.py* <br>
 Responsibility: Stores static data so we don't clutter the main logic.
 Content: The SITES dictionary (coordinates, descriptions), MONTH_MAP, and global settings like Page Layout config.
 
-3. # *services/gee_service.py*\
+3. ### *services/gee_service.py*\
 Responsibility: Talks to the satellite backend.\
 Content: initialize_gee(), mask_s2_clouds(), and get_live_ndvi(). This isolates the complex Earth Engine authentication logic from the UI.
 
-3. # *services/nasa_service.py*\
+3. #### *services/nasa_service.py*\
    Responsibility: Fetches live fire data.\
 Content: fetch_nasa_fires(). If we add the alert system later, this file will also contain the logic to check if those fires are near sensitive areas.
 
