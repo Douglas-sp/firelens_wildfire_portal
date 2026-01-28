@@ -1,8 +1,8 @@
 "# firelens_wildfire_portal" 
 
-`firelens_uganda/
-├── .streamlit/
-│   └── secrets.toml          # API Keys (NASA, GEE)
+`firelens_uganda/\n
+├── .streamlit/\n
+│   └── secrets.toml          # API Keys (NASA, GEE)\n
 ├── assets/
 │   └── fire_model_V1.ubj     # XGBoost Model File
 ├── services/                 # BUSINESS LOGIC ( The "Brain" )
