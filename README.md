@@ -1,6 +1,6 @@
 "# firelens_wildfire_portal" 
 
-firelens_uganda/
+'firelens_uganda/'
 ├── .streamlit/
 │   └── secrets.toml          # API Keys (NASA, GEE)
 ├── assets/
@@ -16,11 +16,11 @@ firelens_uganda/
 │   └── map_utils.py          # Folium map helpers
 ├── config.py                 # Constants (Site Lists, Month Maps)
 └── app.py                    # MAIN ENTRY POINT ( The "Face" )
-
+'
 🧩 __Module Breakdown__
 Here is how we will distribute the current code:
 
-1. config.py
+1. *config.py*
 Responsibility: Stores static data so we don't clutter the main logic.
 
 Content: The SITES dictionary (coordinates, descriptions), MONTH_MAP, and global settings like Page Layout config.
