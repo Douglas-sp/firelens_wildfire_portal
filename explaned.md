@@ -52,3 +52,13 @@ Finally, the system presents the data and acts on it.
 *   **`services/alert_service.py`**: The "Judge". Decides if a situation is dangerous.
 *   **`services/notification_service.py`**: The "Messenger". Sends Telegram alerts.
 *   **`utils/pdf_generator.py`**: The "Scribe". Writes the PDF report.
+
+## Summary of Logic Flow
+**Is it dry?** (NDVI < 0.24) ➡️ +1 Risk Point
+**Does the AI see a pattern?** (AI > 75%) ➡️ +1 Risk Point
+**Is something actually burning?** (NASA > 330K) ➡️ +1 Risk Point
+
+**Result:** 2 points = **HIGH**, 3 points = **CRITICAL**. Both will now trigger an auto-alert.
+
+
+

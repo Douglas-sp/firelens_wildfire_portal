@@ -13,7 +13,7 @@ def load_xgb_model(model_path='assets/fire_model_V1.ubj'):
     """
     try:
         model = xgb.XGBRegressor()
-        model.load_model(model_path)  # Ensure this filename matches the one assigned to the model
+        model.load_model(model_path)
         return model
     except Exception as e:
         st.error(f"Failed to load model from {model_path}: {e}")

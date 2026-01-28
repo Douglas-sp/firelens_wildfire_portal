@@ -20,20 +20,25 @@ MONTH_MAP = {
 UGANDA_TZ_OFFSET = 3  # GMT+3 (East Africa Time)
 CURRENT_YEAR = 2026
 
-# --- Alert Thresholds ---
-THRESHOLD_NDVI_CRITICAL = 0.22  # Below this, vegetation is dangerously dry
-THRESHOLD_PREDICTION_RISK = 80.0 # XGBoost confidence percentage
-THRESHOLD_BRIGHTNESS_K = 330    # NASA VIIRS Brightness temperature for "High Intensity"
-
 # --- Automation Settings ---
 AUTO_ALERT_ENABLED = True  # Master toggle for automatic dispatch
 # Define which levels qualify for automatic broadcast
-AUTO_DISPATCH_LEVELS = ["CRITICAL"]
+AUTO_DISPATCH_LEVELS = ["CRITICAL", "HIGH"]
 
-# --- Notification Settings ---
-# These would typically come from st.secrets in a production environment
-TELEGRAM_BOT_TOKEN = "YOUR_BOT_TOKEN"
-TELEGRAM_CHAT_ID = "YOUR_CHAT_ID"
+# --- Strategic Alert Thresholds ---
 
+# 1. NDVI (Fuel State)
+# 0.20 - 0.25: Critical dryness (cured grass/browned leaves). 
+# 0.40+: Healthy green vegetation (low ignition risk).
+THRESHOLD_NDVI_CRITICAL = 0.24  
+
+# 2. AI Prediction Risk (%)
+# How confident the XGBoost model must be to trigger a 'High' risk level.
+THRESHOLD_PREDICTION_RISK = 75.0 
+
+# 3. Thermal Intensity (Kelvin)
+# VIIRS TI4 channel: 330K is the standard for a 'confirmed' active fire. 
+# 350K+ indicates high-intensity flaming (crown fires or heavy fuel).
+THRESHOLD_BRIGHTNESS_K = 330    
 
 
