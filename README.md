@@ -33,11 +33,11 @@ firelens_uganda/
    __Responsibility:__ Fetches live fire data.\
    __Content:__ `fetch_nasa_fires()`. If we add the alert system later, this file will also contain the logic to check if those fires are near sensitive areas.
 
-5. `##### *services/model_service.py*`
+5. ##### *services/model_service.py*
    __Responsibility:__ Manages the AI.\
    __Content:__ `load_xgb_model()` and `get_aoi_predictions()`.
 
-5. `##### *utils/pdf_generator.py*`
+5. ##### *utils/pdf_generator.py*
    __Responsibility:__ Generates the tactical report.\
    __Content:__ The large `create_pdf()` function.
 
