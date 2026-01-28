@@ -1,6 +1,6 @@
 "# firelens_wildfire_portal" 
 
-'firelens_uganda/'
+`firelens_uganda/
 ├── .streamlit/
 │   └── secrets.toml          # API Keys (NASA, GEE)
 ├── assets/
@@ -16,7 +16,7 @@
 │   └── map_utils.py          # Folium map helpers
 ├── config.py                 # Constants (Site Lists, Month Maps)
 └── app.py                    # MAIN ENTRY POINT ( The "Face" )
-'
+`
 🧩 __Module Breakdown__
 Here is how we will distribute the current code:
 
