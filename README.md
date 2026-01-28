@@ -21,7 +21,7 @@ firelens_uganda/
  ## Module Breakdown  
  Here is how we will distribute the current code:
 
-1. #### *config.py*\
+1. #### *config.py*
    __Responsibility:__ Stores static data so we don't clutter the main logic.\
    __Content:__ The SITES dictionary (coordinates, descriptions), MONTH_MAP, and global settings like Page Layout config.
 
@@ -37,7 +37,7 @@ firelens_uganda/
    __Responsibility:__ Manages the AI.\
    __Content:__ load_xgb_model() and get_aoi_predictions().
 
-5. #### *utils/pdf_generator.py*
+5. ##### *utils/pdf_generator.py*
    __Responsibility:__ Generates the tactical report.\
    __Content:__ The large create_pdf() function. Moving this out will save about 70 lines of code from your main app file.
 
