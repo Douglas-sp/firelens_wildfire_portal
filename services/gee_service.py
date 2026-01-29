@@ -1,6 +1,6 @@
 import ee
 import streamlit as st
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 # Initialize GEE Connection
 def initialize_gee():
@@ -38,8 +38,8 @@ def get_live_ndvi(lat, lon, buffer_deg):
     point = ee.Geometry.Point([lon, lat]).buffer(buffer_deg * 111000)
     
     # Set date range (60 days back from 'now' in GMT+3)
-    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
-    start_date = (now - datetime.timedelta(days=60)).strftime('%Y-%m-%d')
+    now = datetime.now(timezone(timedelta(hours=3)))
+    start_date = (now - timedelta(days=60)).strftime('%Y-%m-%d')
     
     collection = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
                   .filterBounds(point)

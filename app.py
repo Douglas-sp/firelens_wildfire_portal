@@ -8,7 +8,7 @@ import datetime
 
 # --- 1. INTERNAL MODULE IMPORTS ---
 from config import SITES, MONTH_MAP, CURRENT_YEAR, AUTO_ALERT_ENABLED
-from services.gee_service import get_live_ndvi
+from services.gee_service import get_live_ndvi, get_satellite_snapshot
 from services.nasa_service import fetch_nasa_fires, fetch_historical_fires
 from services.model_service import load_xgb_model, get_aoi_predictions
 from services.alert_service import evaluate_risk_level
@@ -171,28 +171,34 @@ with tab_analytics:
 
     st.divider()
     st.subheader("🖼️ Visual Intelligence Gallery")
-    st.caption("Latest Cloud-Free Sentinel-2 True Color Imagery")
 
-    # Fetch the snapshot URL
-    snapshot_url = get_satellite_snapshot(lat, lon, buffer)
+    # Fetch URL and Metadata
+    snapshot_url, acq_date, clouds = get_satellite_snapshot(lat, lon, buffer)
 
-    g_col1, g_col2 = st.columns([1.5, 1])
-
-    with g_col1:
-        if snapshot_url:
-            st.image(snapshot_url, caption=f"Direct Satellite View of {selected_site}", use_container_width=True)
-        else:
-            st.warning("Satellite snapshot currently unavailable (high cloud cover or sync error).")
-
-    with g_col2:
-        st.markdown("""
-        **How to read this view:**
-        - **Deep Green:** Dense canopy / High moisture.
-        - **Light Brown/Yellow:** Cured grass / High ignition risk.
-        - **Black/Charcoal:** Recent burn scars (Historic).
+    if snapshot_url:
+        g_col1, g_col2 = st.columns([1.5, 1])
+    
+        with g_col1:
+            st.image(snapshot_url, caption=f"Sentinel-2 View: {selected_site}", use_container_width=True)
         
-        *Note: This image is used by the AI to calculate the current NDVI fuel moisture levels.*
-    """)
+        with g_col2:
+            st.markdown(f"""
+            ### Image Metadata
+            - **Acquisition Date:** `{acq_date}`
+            - **Cloud Cover:** `{clouds}%`
+            - **Sensor:** `Sentinel-2 (Optical)`
+            
+            **Intelligence Observations:**
+            1. **Fuel Curing:** Check for yellowing patches indicating high-risk dry grass.
+            2. **Access Roads:** Verify if fire-access tracks are clear and visible.
+            3. **Burn Scars:** Look for black/dark-grey zones indicating recent fire activity.
+        """)
+        
+        # Add a quick link to the official Copernicus Browser for deep diving
+        st.link_button("🌐 Open Copernicus Browser", 
+                       f"https://apps.sentinel-hub.com/eo-browser/?lat={lat}&lng={lon}&zoom=11")
+    else:
+        st.warning("⚠️ Cloud cover is currently too high to generate a clear visual snapshot.")
 
 with tab_history:
     st.subheader(f"Historical Fire Activity: {selected_site}")

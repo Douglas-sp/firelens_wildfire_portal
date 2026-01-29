@@ -143,3 +143,22 @@ st.markdown("""
         }
     </style>
 """, unsafe_allow_html=True)
+
+st.markdown("""
+    <style>
+        /* Styling for the Metadata Box */
+        .stMarkdown div[data-testid="stMarkdownContainer"] blockquote {
+            background-color: #0d1a13;
+            border-left: 5px solid #ffcc80;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        /* Style for the link button to look more like a ranger tool */
+        .stButton button {
+            background-color: #1b3d2f !important;
+            color: #ffcc80 !important;
+            border: 1px solid #ffcc80 !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
