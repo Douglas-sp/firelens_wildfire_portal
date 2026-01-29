@@ -9,13 +9,13 @@ import datetime
 # --- 1. INTERNAL MODULE IMPORTS ---
 from config import SITES, MONTH_MAP, CURRENT_YEAR, AUTO_ALERT_ENABLED
 from services.gee_service import get_live_ndvi
-from services.nasa_service import fetch_nasa_fires
+from services.nasa_service import fetch_nasa_fires, fetch_historical_fires
 from services.model_service import load_xgb_model, get_aoi_predictions
 from services.alert_service import evaluate_risk_level
 from services.notification_service import send_telegram_alert
 from utils.pdf_generator import create_pdf
-# New UI components for tactical styling
 from utils.ui_components import inject_custom_css, display_risk_banner
+
 
 # --- 2. SETUP & INITIALIZATION ---
 st.set_page_config(
@@ -33,7 +33,7 @@ model = load_xgb_model()
 
 # --- 3. SIDEBAR UI (Input & Configuration) ---
 with st.sidebar:
-    st.title("🛡️ FireLens Portal")
+    st.title("FireLens Portal")
     st.subheader("Tactical Configuration")
     
     selected_site = st.selectbox("🎯 Target Protected Area", list(SITES.keys()))
@@ -53,6 +53,19 @@ with st.sidebar:
     st.divider()
     st.caption(f"System Status: Operational")
     st.caption(f"v1.2.0 | © 2026 FireLens")
+    with st.sidebar:
+        st.divider()
+        # Create the heartbeat status indicator
+        st.markdown("""
+            <div style='display: flex; align-items: center;'>
+                <span class="heartbeat-icon">●</span>
+                <span class="status-text">SYSTEM LIVE: DATA SYNC ACTIVE</span>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        # Calculate time since last refresh
+        now = datetime.datetime.now().strftime("%H:%M:%S")
+        st.caption(f"Last Intelligence Update: {now} EAT")
 
 # --- 4. DATA SYNCHRONIZATION (The Logic Core) ---
 # We manage the NDVI sync here to ensure it only updates when the site changes
@@ -62,7 +75,7 @@ if 'ndvi' not in st.session_state or st.session_state.get('last_site') != select
         st.session_state['last_site'] = selected_site
 
 # Run background processing for Predictions and NASA fetches
-with st.spinner("🧠 Processing spatial intelligence..."):
+with st.spinner("Processing spatial intelligence..."):
     # AI Prediction Grid
     heat_data = get_aoi_predictions(model, lat, lon, buffer, st.session_state['ndvi'], target_month)
     
@@ -91,11 +104,20 @@ m_col4.metric("Risk Status", risk_level)
 st.divider()
 
 # --- 6. TACTICAL TABS (UX Separation) ---
-tab_map, tab_analytics, tab_dispatch = st.tabs(["🗺️ Tactical Map", "📊 Analysis & Navigation", "📢 Dispatch Center"])
+tab_map, tab_analytics, tab_history, tab_dispatch = st.tabs(["🗺️ Tactical Map", "📊 Analysis & Navigation", "📈 History & Trends", "📢 Dispatch Center"])
 
 with tab_map:
     # High-visibility pulsing banner for risk status
     display_risk_banner(risk_level, alert_msgs)
+    
+    # Map Legend Overlay
+    st.markdown("""
+        <div style='display: flex; gap: 20px; justify-content: center; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 10px; margin-bottom: 10px;'>
+            <span style='color: #4caf50;'>● <b>Green:</b> Healthy Vegetation</span>
+            <span style='color: #ffaa00;'>🔥 <b>Heatmap:</b> AI Risk Prediction</span>
+            <span style='color: #ff4b4b;'>📍 <b>Red Icon:</b> NASA Live Detection</span>
+        </div>
+    """, unsafe_allow_html=True)
     
     # Map Generation - Focus on Full Width
     m = folium.Map(location=[lat, lon], zoom_start=11, tiles=None)
@@ -146,6 +168,58 @@ with tab_analytics:
             )
         else:
             st.write("No active thermal anomalies detected in this AOI.")
+
+    st.divider()
+    st.subheader("🖼️ Visual Intelligence Gallery")
+    st.caption("Latest Cloud-Free Sentinel-2 True Color Imagery")
+
+    # Fetch the snapshot URL
+    snapshot_url = get_satellite_snapshot(lat, lon, buffer)
+
+    g_col1, g_col2 = st.columns([1.5, 1])
+
+    with g_col1:
+        if snapshot_url:
+            st.image(snapshot_url, caption=f"Direct Satellite View of {selected_site}", use_container_width=True)
+        else:
+            st.warning("Satellite snapshot currently unavailable (high cloud cover or sync error).")
+
+    with g_col2:
+        st.markdown("""
+        **How to read this view:**
+        - **Deep Green:** Dense canopy / High moisture.
+        - **Light Brown/Yellow:** Cured grass / High ignition risk.
+        - **Black/Charcoal:** Recent burn scars (Historic).
+        
+        *Note: This image is used by the AI to calculate the current NDVI fuel moisture levels.*
+    """)
+
+with tab_history:
+    st.subheader(f"Historical Fire Activity: {selected_site}")
+    
+    with st.spinner("Retrieving historical records..."):
+        # Fetch data for the last 6 months
+        hist_df = fetch_historical_fires(lat, lon, buffer, NASA_KEY)
+        
+        if not hist_df.empty:
+            # Group by date to see frequency
+            daily_counts = hist_df.groupby('acq_date').size().reset_index(name='Fire Count')
+            
+            # 1. Trend Chart
+            st.line_chart(daily_counts, x='acq_date', y='Fire Count', color="#ff4b4b")
+            
+            # 2. Insights Column
+            c1, c2 = st.columns(2)
+            with c1:
+                total_incidents = len(hist_df)
+                st.metric("Total Detections (6mo)", total_incidents)
+            with c2:
+                peak_day = daily_counts.loc[daily_counts['Fire Count'].idxmax()]
+                st.metric("Peak Activity Day", peak_day['acq_date'].strftime('%b %d'))
+                
+            st.caption("This data shows seasonal recurrence. High spikes often correlate with 'slash and burn' cycles near park boundaries.")
+        else:
+            st.info("No significant fire history recorded in this area for the last 180 days.")
 
 with tab_dispatch:
     st.subheader("Communication & Notification Control")

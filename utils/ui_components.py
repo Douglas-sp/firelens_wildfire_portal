@@ -92,4 +92,54 @@ def display_risk_banner(level, messages):
             </div>
         </div>
     """, unsafe_allow_html=True)
-    
+
+# Green blinking light to confirm connection GEE and NASA
+st.markdown("""
+    <style>
+        /* Heartbeat Animation */
+        @keyframes heartbeat {
+            0% { opacity: 1; }
+            50% { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
+        .heartbeat-icon {
+            color: #00ff00;
+            animation: heartbeat 1.5s ease-in-out infinite;
+            font-size: 12px;
+            margin-right: 5px;
+        }
+        .status-text {
+            font-size: 12px;
+            color: #808495;
+            font-family: monospace;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+#for history tab
+st.markdown("""
+    <style>
+        .stChart {
+            background-color: #1a1c24;
+            border-radius: 10px;
+            padding: 10px;
+            border: 1px solid #333;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# for satellite snapshot image
+st.markdown("""
+    <style>
+        .stImage > img {
+            border-radius: 15px;
+            border: 2px solid #1b3d2f;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            transition: transform 0.3s ease;
+        }
+        .stImage > img:hover {
+            transform: scale(1.02);
+            border-color: #ffcc80;
+        }
+    </style>
+""", unsafe_allow_html=True)
