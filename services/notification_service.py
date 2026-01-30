@@ -24,7 +24,7 @@ def send_email_alert(site, level, messages):
     msg.set_content(f"FireLens Alert for {site}\nRisk Level: {level}\n\nDetails:\n" + "\n".join(messages))
     msg['Subject'] = f"🔥 {level} Fire Risk Alert - {site}"
     msg['From'] = st.secrets["EMAIL_SENDER"]
-    msg['To'] = "ranger_ops@uwa.go.ug" # Example recipient list
+    msg['To'] = "wamaniray@uwa.go.ug" # Example recipient list
 
     try:
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
@@ -35,12 +35,12 @@ def send_email_alert(site, level, messages):
         return False
 
 # SMS alert
-def send_sms_alert(site, level, messages):
+def send_sms_alert(site, level, messages, recipient):
     """Sends a high-priority SMS (Twilio Example)."""
     try:
         client = Client(st.secrets["TWILIO_ACCOUNT_SID"], st.secrets["TWILIO_AUTH_TOKEN"])
         body = f"FireLens {level}: {site}. Check portal for coords."
-        client.messages.create(body=body, from_=st.secrets["TWILIO_FROM_NUMBER"], to="+256XXXXXXXXX")
+        client.messages.create(body=body, from_=st.secrets["TWILIO_FROM_NUMBER"], to=recipient)
         return True
     except:
         return False
@@ -77,7 +77,7 @@ def send_push_alert(site, level, messages):
         return False
 
 # WhatsApp notification alert
-def send_whatsapp_alert(site, level, messages):
+def send_whatsapp_alert(site, level, messages, recipient):
     """
     Sends a WhatsApp message via Twilio.
     Note: Recipient must have 'opted-in' to the Twilio sandbox for testing.
@@ -92,35 +92,67 @@ def send_whatsapp_alert(site, level, messages):
         message = client.messages.create(
             from_=st.secrets["TWILIO_WHATSAPP_FROM"],
             body=body,
-            to=st.secrets["TWILIO_WHATSAPP_TO"]
+            to=recipient
         )
         return True
     except Exception as e:
         print(f"WhatsApp Error: {e}")
         return False
 
-# Master dispatch message function
-def broadcast_all_channels(site, level, messages):
-    """
-    MASTER DISPATCH: Sends to all active channels simultaneously.
-    """
-    results = {}
-    # 1. Real-time Chat
-    results['Telegram'] = send_telegram_alert(site, level, messages)[0]
+# Master dispatch message function - v1
+# def broadcast_all_channels(site, level, messages):
+#     """
+#     MASTER DISPATCH: Sends to all active channels simultaneously.
+#     """
+#     results = {}
+#     # 1. Real-time Chat
+#     results['Telegram'] = send_telegram_alert(site, level, messages)[0]
     
-    # 2. Critical Mobile Push
-    results['Push (Pushover)'] = send_push_alert(site, level, messages)
+#     # 2. Critical Mobile Push
+#     results['Push (Pushover)'] = send_push_alert(site, level, messages)
     
-    # 3. High-Reliability SMS
-    results['SMS (Twilio)'] = send_sms_alert(site, level, messages)
+#     # 3. High-Reliability SMS
+#     results['SMS (Twilio)'] = send_sms_alert(site, level, messages)
     
-    # 4. Formal Log (Email)
-    results['Email (SMTP)'] = send_email_alert(site, level, messages)
+#     # 4. Formal Log (Email)
+#     results['Email (SMTP)'] = send_email_alert(site, level, messages)
 
-    # 5. WhatsApp notification alert
-    results['WhatsApp'] = send_whatsapp_alert(site, level, messages)
+#     # 5. WhatsApp notification alert
+#     results['WhatsApp'] = send_whatsapp_alert(site, level, messages)
         
-    # Push notifications (using Streamlit's toast for web-push feel)
-    st.toast(f"BROADCAST ACTIVE: {level} risk at {site}", icon="📢")
+#     # Push notifications (using Streamlit's toast for web-push feel)
+#     st.toast(f"BROADCAST ACTIVE: {level} risk at {site}", icon="📢")
     
-    return results
+#     return results
+
+def broadcast_to_directory(selected_site, level, messages, snapshot_url=None):
+    """
+    Filters the directory by AOI and sends alerts only to relevant staff.
+    """
+    from utils.contact_manager import load_contacts
+    contacts = load_contacts()
+    
+    # 1. Filter by Active status
+    # 2. Filter by AOI (Match the site name OR 'ALL' for high-level staff)
+    relevant_contacts = contacts[
+        (contacts['Active'] == True) & 
+        (contacts['Assigned_Sites'].str.contains(selected_site) | 
+         contacts['Assigned_Sites'].str.contains("ALL"))
+    ]
+    
+    report = []
+    for _, person in relevant_contacts.iterrows():
+        # Dispatch logic for SMS, WA, TG, Push & Email
+        success = send_sms_alert(selected_site, level, messages, recipient=person['SMS_Phone'])
+        success = send_whatsapp_alert(selected_site, level, messages, recipient=person['WhatsApp_Phone'])
+        success = send_telegram_alert(selected_site, level, messages, recipient=person['Telegram_ID'])
+        success = send_push_alert(selected_site, level, messages, recipient=person['Push_ID'])
+        success = send_email_alert(selected_site, level, messages, recipient=person['Email'])
+
+        report.append({
+            "Name": person['Name'],
+            "Site": person['Assigned_Sites'],
+            "Status": "✅ Sent" if success else "❌ Failed"
+        })
+    
+    return report

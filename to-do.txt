@@ -1,6 +1,6 @@
 Remove telegram sent feature on display before multi-channel integration
 
-
+Automate the notification dispatch to assigned sites personnel based on the AOI currently selected.
 
 1. Configure telegram bot and get the token and chat id
 2. Configure email and get the sender and password

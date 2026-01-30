@@ -12,7 +12,7 @@ from services.gee_service import get_live_ndvi, get_satellite_snapshot
 from services.nasa_service import fetch_nasa_fires, fetch_historical_fires
 from services.model_service import load_xgb_model, get_aoi_predictions
 from services.alert_service import evaluate_risk_level
-from services.notification_service import broadcast_all_channels
+from services.notification_service import broadcast_to_directory
 from utils.pdf_generator import create_pdf
 from utils.ui_components import inject_custom_css, display_risk_banner
 
@@ -104,7 +104,7 @@ m_col4.metric("Risk Status", risk_level)
 st.divider()
 
 # --- 6. TACTICAL TABS (UX Separation) ---
-tab_map, tab_analytics, tab_history, tab_dispatch = st.tabs(["🗺️ Tactical Map", "📊 Analysis & Navigation", "📈 History & Trends", "📢 Dispatch Center"])
+tab_map, tab_analytics, tab_history, tab_dispatch, tab_directory = st.tabs(["🗺️ Tactical Map", "📊 Analysis & Navigation", "📈 History & Trends", "📢 Dispatch Center", "📞 Contact Directory"])
 
 with tab_map:
     # High-visibility pulsing banner for risk status
@@ -228,50 +228,79 @@ with tab_history:
             st.info("No significant fire history recorded in this area for the last 180 days.")
 
 with tab_dispatch:
-    st.subheader("Communication & Notification Control")
+    # st.subheader("Communication & Notification Control")
     
-    # Automatic Dispatch Feedback
-    if AUTO_ALERT_ENABLED and is_dispatch_worthy:
-        sent_key = f"sent_{selected_site}_{datetime.date.today()}"
-        if sent_key not in st.session_state:
-            with st.status("🚀 Automatic High-Risk Dispatch in progress...", expanded=False):
-                success, info = send_telegram_alert(selected_site, risk_level, alert_msgs)
+    # # Automatic Dispatch Feedback
+    # if AUTO_ALERT_ENABLED and is_dispatch_worthy:
+    #     sent_key = f"sent_{selected_site}_{datetime.date.today()}"
+    #     if sent_key not in st.session_state:
+    #         with st.status("🚀 Automatic High-Risk Dispatch in progress...", expanded=False):
+    #             success, info = send_telegram_alert(selected_site, risk_level, alert_msgs)
+    #             if success:
+    #                 st.session_state[sent_key] = True
+    #                 st.toast("Auto-Alert Broadcasted!", icon="📢")
+    #             else:
+    #                 st.error(f"Dispatch Error: {info}")
+    #     else:
+    #         st.success("✅ Automatic alert for today has already been broadcasted to the Ranger Group.")
+
+    # st.divider()
+    
+    # # Manual Override
+    # st.write("Force a manual update to the field teams:")
+    # if st.button("📢 Manual Broadcast (Telegram)", use_container_width=True):
+    #     success, info = send_telegram_alert(selected_site, risk_level, alert_msgs)
+    #     if success:
+    #         st.toast("Manual alert dispatched successfully.")
+    #     else:
+    #         st.error(f"Manual dispatch failed: {info}")
+
+
+    st.subheader("📢 Unified Command Broadcast")
+    st.write("Triggering this will alert all field rangers via SMS, Email, and Telegram.")
+
+    if st.button("🚀 INITIATE MULTI-CHANNEL DISPATCH", use_container_width=True):
+        with st.status("Dispatching alerts across Uganda...", expanded=True) as status:
+            st.write("Checking Satellite bridge...")
+            # Run the broadcast
+            dispatch_report = broadcast_all_channels(selected_site, risk_level, alert_msgs)
+            
+            # UI Feedback for each channel
+            for channel, success in dispatch_report.items():
                 if success:
-                    st.session_state[sent_key] = True
-                    st.toast("Auto-Alert Broadcasted!", icon="📢")
+                    st.write(f"✅ {channel}: Delivered")
                 else:
-                    st.error(f"Dispatch Error: {info}")
-        else:
-            st.success("✅ Automatic alert for today has already been broadcasted to the Ranger Group.")
-
-    st.divider()
-    
-    # Manual Override
-    st.write("Force a manual update to the field teams:")
-    if st.button("📢 Manual Broadcast (Telegram)", use_container_width=True):
-        success, info = send_telegram_alert(selected_site, risk_level, alert_msgs)
-        if success:
-            st.toast("Manual alert dispatched successfully.")
-        else:
-            st.error(f"Manual dispatch failed: {info}")
-
-
-st.subheader("📢 Unified Command Broadcast")
-st.write("Triggering this will alert all field rangers via SMS, Email, and Telegram.")
-
-if st.button("🚀 INITIATE MULTI-CHANNEL DISPATCH", use_container_width=True):
-    with st.status("Dispatching alerts across Uganda...", expanded=True) as status:
-        st.write("Checking Satellite bridge...")
-        # Run the broadcast
-        dispatch_report = broadcast_all_channels(selected_site, risk_level, alert_msgs)
+                    st.write(f"❌ {channel}: Failed (Check API Settings){st.session_state}")
+            
+            status.update(label="Broadcast Complete", state="complete", expanded=False)
         
-        # UI Feedback for each channel
-        for channel, success in dispatch_report.items():
-            if success:
-                st.write(f"✅ {channel}: Delivered")
-            else:
-                st.write(f"❌ {channel}: Failed (Check API Settings){st.session_state}")
-        
-        status.update(label="Broadcast Complete", state="complete", expanded=False)
+        st.balloons() # Visual confirmation for the user
+
+with tab_directory:
     
-    st.balloons() # Visual confirmation for the user
+    st.subheader(" Field Personnel & AOI Assignment")
+
+    from utils.contact_manager import load_contacts, save_contacts
+    contacts_df = load_contacts()
+
+    # Defining the list of valid parks for the dropdown
+    park_list = ["Murchison Falls NP", "Budongo Forest", "Bugoma Forest", "Kabwoya Wildlife Reserve", "Kibale Forest", "ALL"]
+
+    edited_df = st.data_editor(
+        contacts_df,
+        column_config={
+            "Assigned_Sites": st.column_config.SelectboxColumn(
+                "Primary AOI",
+                help="Which Protected Area (park/Forest/Reserve) is this ranger assigned to?",
+                options=park_list,
+                required=True,
+            ),
+            "Active": st.column_config.CheckboxColumn("On Duty?"),
+        },
+        num_rows="dynamic",
+        use_container_width=True
+    )
+
+    if st.button("💾 Sync Directory & AOIs"):
+        save_contacts(edited_df)
+        st.success("AOI Assignments Saved.")
