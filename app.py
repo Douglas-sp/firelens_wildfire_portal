@@ -12,7 +12,7 @@ from services.gee_service import get_live_ndvi, get_satellite_snapshot
 from services.nasa_service import fetch_nasa_fires, fetch_historical_fires
 from services.model_service import load_xgb_model, get_aoi_predictions
 from services.alert_service import evaluate_risk_level
-from services.notification_service import send_telegram_alert
+from services.notification_service import broadcast_all_channels
 from utils.pdf_generator import create_pdf
 from utils.ui_components import inject_custom_css, display_risk_banner
 
@@ -254,3 +254,24 @@ with tab_dispatch:
             st.toast("Manual alert dispatched successfully.")
         else:
             st.error(f"Manual dispatch failed: {info}")
+
+
+st.subheader("📢 Unified Command Broadcast")
+st.write("Triggering this will alert all field rangers via SMS, Email, and Telegram.")
+
+if st.button("🚀 INITIATE MULTI-CHANNEL DISPATCH", use_container_width=True):
+    with st.status("Dispatching alerts across Uganda...", expanded=True) as status:
+        st.write("Checking Satellite bridge...")
+        # Run the broadcast
+        dispatch_report = broadcast_all_channels(selected_site, risk_level, alert_msgs)
+        
+        # UI Feedback for each channel
+        for channel, success in dispatch_report.items():
+            if success:
+                st.write(f"✅ {channel}: Delivered")
+            else:
+                st.write(f"❌ {channel}: Failed (Check API Settings){st.session_state}")
+        
+        status.update(label="Broadcast Complete", state="complete", expanded=False)
+    
+    st.balloons() # Visual confirmation for the user

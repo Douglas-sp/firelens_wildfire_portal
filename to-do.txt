@@ -1,0 +1,12 @@
+Remove telegram sent feature on display before multi-channel integration
+
+
+
+1. Configure telegram bot and get the token and chat id
+2. Configure email and get the sender and password
+3. Configure twilio and get the account sid and auth token
+4. Configure the notification service to send alerts to all channels
+5. Configure phone number for whatsapp and get the phone id
+6. Configure whatsapp and get the phone id
+7. Configure phone number for sms and get the phone id
+8. Configure sms and get the phone id
