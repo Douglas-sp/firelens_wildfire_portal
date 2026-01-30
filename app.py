@@ -15,6 +15,7 @@ from services.alert_service import evaluate_risk_level
 from services.notification_service import broadcast_to_directory
 from utils.pdf_generator import create_pdf
 from utils.ui_components import inject_custom_css, display_risk_banner
+from utils.contact_manager import load_contacts
 
 
 # --- 2. SETUP & INITIALIZATION ---
@@ -103,8 +104,14 @@ m_col4.metric("Risk Status", risk_level)
 
 st.divider()
 
-# --- 6. TACTICAL TABS (UX Separation) ---
-tab_map, tab_analytics, tab_history, tab_dispatch, tab_directory = st.tabs(["🗺️ Tactical Map", "📊 Analysis & Navigation", "📈 History & Trends", "📢 Dispatch Center", "📞 Contact Directory"])
+# --- 6. TACTICAL TABS ---
+tab_map, tab_analytics, tab_history, tab_dispatch, tab_directory = st.tabs([
+    "🗺️ Tactical Map", 
+    "📊 Analysis & Navigation", 
+    "📈 History & Trends", 
+    "📢 Dispatch Center", 
+    "📞 Contact Directory"
+])
 
 with tab_map:
     # High-visibility pulsing banner for risk status
@@ -263,14 +270,14 @@ with tab_dispatch:
         with st.status("Dispatching alerts across Uganda...", expanded=True) as status:
             st.write("Checking Satellite bridge...")
             # Run the broadcast
-            dispatch_report = broadcast_all_channels(selected_site, risk_level, alert_msgs)
+            dispatch_report = broadcast_to_directory(selected_site, risk_level, alert_msgs)
             
-            # UI Feedback for each channel
-            for channel, success in dispatch_report.items():
-                if success:
-                    st.write(f"✅ {channel}: Delivered")
-                else:
-                    st.write(f"❌ {channel}: Failed (Check API Settings){st.session_state}")
+            if dispatch_report:
+                st.write("### 🛡️ Field Dispatch Status")
+                for entry in dispatch_report:
+                    st.write(f"**{entry['Name']}**: {entry['Status']}")
+            else:
+                st.warning("No active personnel found for this Area of Interest.")
             
             status.update(label="Broadcast Complete", state="complete", expanded=False)
         
@@ -280,11 +287,11 @@ with tab_directory:
     
     st.subheader(" Field Personnel & AOI Assignment")
 
-    from utils.contact_manager import load_contacts, save_contacts
     contacts_df = load_contacts()
 
-    # Defining the list of valid parks for the dropdown
-    park_list = ["Murchison Falls NP", "Budongo Forest", "Bugoma Forest", "Kabwoya Wildlife Reserve", "Kibale Forest", "ALL"]
+    # Defining the list of valid parks for the dropdown from SITES and adding "ALL"
+    park_list = SITES
+    park_list["ALL"] = (0, 0, 0, "All Protected Areas")
 
     edited_df = st.data_editor(
         contacts_df,
@@ -301,6 +308,7 @@ with tab_directory:
         use_container_width=True
     )
 
-    if st.button("💾 Sync Directory & AOIs"):
-        save_contacts(edited_df)
-        st.success("AOI Assignments Saved.")
+    # if st.button("💾 Sync Directory & AOIs"):
+    #     save_contacts(edited_df)
+    #     st.success("AOI Assignments Saved.")
+

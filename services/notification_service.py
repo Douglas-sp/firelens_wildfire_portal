@@ -125,34 +125,44 @@ def send_whatsapp_alert(site, level, messages, recipient):
     
 #     return results
 
-def broadcast_to_directory(selected_site, level, messages, snapshot_url=None):
+def broadcast_to_directory(selected_site, level, messages):
     """
-    Filters the directory by AOI and sends alerts only to relevant staff.
+    Filters the directory by AOI and sends alerts to relevant staff across all channels.
     """
     from utils.contact_manager import load_contacts
     contacts = load_contacts()
     
-    # 1. Filter by Active status
-    # 2. Filter by AOI (Match the site name OR 'ALL' for high-level staff)
+    # Filter for active staff assigned to this site or "ALL"
     relevant_contacts = contacts[
         (contacts['Active'] == True) & 
-        (contacts['Assigned_Sites'].str.contains(selected_site) | 
-         contacts['Assigned_Sites'].str.contains("ALL"))
+        (contacts['Assigned_Sites'].str.contains(selected_site, na=False) | 
+         contacts['Assigned_Sites'].str.contains("ALL", na=False))
     ]
     
     report = []
     for _, person in relevant_contacts.iterrows():
-        # Dispatch logic for SMS, WA, TG, Push & Email
-        success = send_sms_alert(selected_site, level, messages, recipient=person['SMS_Phone'])
-        success = send_whatsapp_alert(selected_site, level, messages, recipient=person['WhatsApp_Phone'])
-        success = send_telegram_alert(selected_site, level, messages, recipient=person['Telegram_ID'])
-        success = send_push_alert(selected_site, level, messages, recipient=person['Push_ID'])
-        success = send_email_alert(selected_site, level, messages, recipient=person['Email'])
+        # Track which channels worked for THIS person
+        channels_ok = []
+        
+        # 1. SMS
+        if pd.notna(person.get('SMS_Phone')) and send_sms_alert(selected_site, level, messages, person['SMS_Phone']):
+            channels_ok.append("SMS")
+        
+        # 2. WhatsApp
+        if pd.notna(person.get('WA_Phone')) and send_whatsapp_alert(selected_site, level, messages, person['WA_Phone']):
+            channels_ok.append("WA")
+            
+        # 3. Telegram (Existing/Global)
+        if pd.notna(person.get('Telegram_ID')) and send_telegram_alert(selected_site, level, messages)[0]:
+            channels_ok.append("TG")
+            
+        # 4. Email
+        if pd.notna(person.get('Email')) and send_email_alert(selected_site, level, messages):
+            channels_ok.append("Email")
 
         report.append({
             "Name": person['Name'],
-            "Site": person['Assigned_Sites'],
-            "Status": "✅ Sent" if success else "❌ Failed"
+            "Status": f"✅ {', '.join(channels_ok)}" if channels_ok else "❌ All Failed"
         })
     
     return report

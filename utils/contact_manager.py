@@ -15,3 +15,4 @@ def load_contacts():
         return template
     
     return pd.read_csv(CONTACTS_FILE)
+

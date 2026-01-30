@@ -1,6 +1,10 @@
 Remove telegram sent feature on display before multi-channel integration
 
-Automate the notification dispatch to assigned sites personnel based on the AOI currently selected.
+Automate the notification dispatch to assigned sites personnel based on the AOI currently selected. No need to selec the AOI for dispatching
+Situational status update checking??? is it correct? and is it necessary feature-YES/maybe.
+Hide the contact info from the public? HOW?
+
+LOGGING MESSAGES SENT OUT 
 
 1. Configure telegram bot and get the token and chat id
 2. Configure email and get the sender and password

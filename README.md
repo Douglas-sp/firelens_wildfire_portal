@@ -1,24 +1,33 @@
-# firelens_wildfire_portal DIRECTORY_MAP 
+# FireLens Wildfire Portal 🛡️
+
+A tactical Command & Control dashboard for wildfire monitoring, risk forecasting, and automated alert dispatch in Uganda's Protected Areas.
+
+## 1. Project Map & Architecture
 
 ```
-firelens_uganda/
+firelens_wildfire_portal/
 ├── .streamlit/
-│   └── secrets.toml          # API Keys (NASA, GEE)
+│   └── secrets.toml          # API Keys (NASA, GEE, Twilio, etc.)
 ├── assets/
 │   └── fire_model_V1.ubj     # XGBoost Model File
+├── data/
+│   └── contacts.csv          # Contact Directory (AOI Mapped)
 ├── services/                 # BUSINESS LOGIC ( The "Brain" )
-│   ├── __init__.py
-│   ├── gee_service.py        # Handles Google Earth Engine & NDVI
-│   ├── nasa_service.py       # Handles NASA FIRMS API calls
-│   └── model_service.py      # Handles XGBoost loading & prediction
+│   ├── alert_service.py      # Multi-factor Risk Evaluation
+│   ├── gee_service.py        # GEE & Satellite Imagery API
+│   ├── model_service.py      # XGBoost Inference Engine
+│   ├── nasa_service.py       # NASA FIRMS Live Data API
+│   └── notification_service.py # Multi-channel Dispatch Logic
 ├── utils/                    # HELPER FUNCTIONS ( The "Tools" )
-│   ├── __init__.py
-│   ├── pdf_generator.py      # PDF Report Logic
-│   └── map_utils.py          # Folium map helpers
-├── config.py                 # Constants (Site Lists, Month Maps)
-└── app.py                    # MAIN ENTRY POINT ( The "Face" )
+│   ├── contact_manager.py    # CSV Directory Handling
+│   ├── map_utils.py          # Folium Map Layering
+│   ├── pdf_generator.py      # Tactical PDF Export
+│   └── ui_components.py      # Custom CSS & Pulsing Banners
+├── config.py                 # Static Site Metadata & Thresholds
+└── app.py                    # UNIFIED COMMAND UI (Streamlit)
 ```
- ## Module Breakdown  
+
+## Module Breakdown  
  Here is how we will distribute the current code:
 
 1. ##### *config.py*
@@ -55,6 +64,7 @@ firelens_uganda/
 This is a **Wildfire Monitoring & Early Warning System** designed effectively for Uganda's protected areas (like Murchison Falls NP). It combines **live satellite data** (NASA & Google Earth Engine) with an **AI model** (XGBoost) to assess fire risk in real-time and dispatch alerts.
 
 ## 2. System Workflow (The "Story")
+
 The system follows a linear pipeline: **Input → Ingestion → Processing → Action**.
 
 ### Step 1: User Selection (Inputs)
