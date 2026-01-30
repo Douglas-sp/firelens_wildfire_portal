@@ -3,6 +3,8 @@ import smtplib
 from email.message import EmailMessage
 from twilio.rest import Client
 import requests
+from utils.logger import log_dispatch
+from utils.contact_manager import load_contacts
 
 # Telegram alert
 def send_telegram_alert(site, level, messages):
@@ -129,7 +131,6 @@ def broadcast_to_directory(selected_site, level, messages):
     """
     Filters the directory by AOI and sends alerts to relevant staff across all channels.
     """
-    from utils.contact_manager import load_contacts
     contacts = load_contacts()
     
     # Filter for active staff assigned to this site or "ALL"
@@ -164,5 +165,8 @@ def broadcast_to_directory(selected_site, level, messages):
             "Name": person['Name'],
             "Status": f"✅ {', '.join(channels_ok)}" if channels_ok else "❌ All Failed"
         })
+    
+    # Auto-Log the dispatch
+    log_dispatch(site=selected_site, level=level, recipients_count=len(relevant_contacts), channel_report=report)
     
     return report
