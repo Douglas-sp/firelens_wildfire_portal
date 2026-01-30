@@ -5,6 +5,7 @@ import folium
 from folium.plugins import HeatMap
 from streamlit_folium import st_folium
 import datetime
+import os
 
 # --- 1. INTERNAL MODULE IMPORTS ---
 from config import SITES, MONTH_MAP, CURRENT_YEAR, AUTO_ALERT_ENABLED
@@ -282,6 +283,33 @@ with tab_dispatch:
             status.update(label="Broadcast Complete", state="complete", expanded=False)
         
         st.balloons() # Visual confirmation for the user
+
+# Operational Reports/ Monthly dispatch report
+    st.divider()
+    st.subheader("📊 Operational Reports")
+    st.write("Download monthly dispatch logs for official reporting.")
+    
+    if os.path.exists("logs"):
+        log_files = [f for f in os.listdir("logs") if f.endswith(".csv")]
+        selected_log = st.selectbox("Select Month", sorted(log_files, reverse=True))
+        
+        if selected_log:
+            log_path = os.path.join("logs", selected_log)
+            df_log = pd.read_csv(log_path)
+            
+            # Preview the last 5 dispatches
+            st.dataframe(df_log.tail(5), use_container_width=True)
+            
+            # Download Button
+            with open(log_path, "rb") as f:
+                st.download_button(
+                    label=f"📥 Download {selected_log}",
+                    data=f,
+                    file_name=selected_log,
+                    mime="text/csv"
+                )
+    else:
+        st.info("No logs generated yet. Logs will appear after your first dispatch.")
 
 with tab_directory:
     

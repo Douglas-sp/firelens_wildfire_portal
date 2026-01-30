@@ -60,5 +60,24 @@ Finally, the system presents the data and acts on it.
 
 **Result:** 2 points = **HIGH**, 3 points = **CRITICAL**. Both will now trigger an auto-alert.
 
+## Operational Logging & Accountability
 
+Every alert dispatch is automatically recorded for audit and compliance purposes:
 
+### What Gets Logged:
+*   **Timestamp** (East Africa Time - EAT)
+*   **Protected Area** (AOI)
+*   **Risk Level** (CRITICAL, HIGH, NORMAL)
+*   **Recipients Count** (Number of rangers contacted)
+*   **Channel Status** (Success/failure for each communication method)
+
+### Log File Structure:
+*   **Location:** `logs/dispatch_log_YYYY_MM.csv`
+*   **Format:** Monthly CSV files (e.g., `dispatch_log_2026_01.csv`)
+*   **Access:** Downloadable from the "Operational Reports" section in the Dispatch Center tab
+
+### Use Cases:
+1.  **Management Reports:** Track response times and coverage
+2.  **Compliance:** Demonstrate due diligence for protected area management
+3.  **System Audits:** Verify notification system reliability
+4.  **Historical Analysis:** Review past incidents and response patterns

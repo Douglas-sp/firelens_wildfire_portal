@@ -20,9 +20,12 @@ firelens_wildfire_portal/
 │   └── notification_service.py # Multi-channel Dispatch Logic
 ├── utils/                    # HELPER FUNCTIONS ( The "Tools" )
 │   ├── contact_manager.py    # CSV Directory Handling
+│   ├── logger.py             # Dispatch Activity Logging
 │   ├── map_utils.py          # Folium Map Layering
 │   ├── pdf_generator.py      # Tactical PDF Export
 │   └── ui_components.py      # Custom CSS & Pulsing Banners
+├── logs/                     # AUTO-GENERATED DISPATCH LOGS
+│   └── dispatch_log_YYYY_MM.csv  # Monthly audit trails
 ├── config.py                 # Static Site Metadata & Thresholds
 └── app.py                    # UNIFIED COMMAND UI (Streamlit)
 ```
@@ -62,6 +65,25 @@ firelens_wildfire_portal/
 
 ## 1. High-Level Purpose
 This is a **Wildfire Monitoring & Early Warning System** designed effectively for Uganda's protected areas (like Murchison Falls NP). It combines **live satellite data** (NASA & Google Earth Engine) with an **AI model** (XGBoost) to assess fire risk in real-time and dispatch alerts.
+
+## 4. Multi-Channel Dispatch System
+
+The portal features a **Unified Command Center** that automatically filters personnel by AOI and alerts relevant staff through:
+*   **SMS:** High-reliability text via Twilio.
+*   **WhatsApp:** Rich messaging for tactical situational updates.
+*   **Telegram:** Instant group-based community alerts.
+*   **Email:** Formal logging and management SITREPs.
+*   **Pushover:** High-priority "Siren" notifications for CRITICAL threats.
+
+### Operational Logging
+Every dispatch is **automatically logged** to monthly CSV files (`logs/dispatch_log_YYYY_MM.csv`) containing:
+*   Timestamp (EAT timezone)
+*   Site/AOI
+*   Risk Level
+*   Number of recipients
+*   Channel success/failure statuses
+
+These logs can be downloaded directly from the **Dispatch Center** tab for official reporting and compliance.
 
 ## 2. System Workflow (The "Story")
 
