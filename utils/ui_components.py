@@ -10,9 +10,7 @@ def inject_custom_css():
             /* 1. Global Tactical Theme */
             .stApp {
                 background-color: #0e1117;
-                
-                # color: #e0e0e0;
-                
+                color: #e0e0e0;
             }
             
             /* 2. Pulsing Animation Keyframes */
