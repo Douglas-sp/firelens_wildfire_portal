@@ -6,6 +6,8 @@ Hide the contact info from the public? HOW?
 
 LOGGING MESSAGES SENT OUT 
 
+>>Add a "Test Connection" button inside the data editor row so you can send a single test ping to a specific ranger before turning on the full automation?
+
 1. Configure telegram bot and get the token and chat id
 2. Configure email and get the sender and password
 3. Configure twilio and get the account sid and auth token

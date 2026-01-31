@@ -84,12 +84,37 @@ with st.spinner("Processing spatial intelligence..."):
     # Live Thermal Anomalies
     live_fires = fetch_nasa_fires(lat, lon, buffer, NASA_KEY)
     
-    # Multi-factor Risk Evaluation
-    risk_level, alert_msgs, is_dispatch_worthy = evaluate_risk_level(
-        st.session_state['ndvi'], 
-        heat_data, 
-        live_fires
-    )
+
+# Multi-factor Risk Level Evaluation
+risk_level, alert_msgs, is_dispatch_worthy = evaluate_risk_level(
+    st.session_state['ndvi'],
+    heat_data,
+    live_fires
+)
+
+# AUTOMATIC DISPATCH LOGIC
+if AUTO_ALERT_ENABLED and is_dispatch_worthy:
+    # 1. Create a unique key for today and this site
+    today_str = datetime.date.today().strftime("%Y-%m-%d")
+    alert_tracker_key = f"alert_sent_{selected_site}_{today_str}"
+
+    # 2. Only send if we haven't sent an auto-alert for THIS site TODAY
+    if alert_tracker_key not in st.session_state:
+        with st.status(f"🚨 AUTO-DISPATCH: High Risk at {selected_site}...", expanded=False) as status:
+            st.write("Fetching assigned personnel...")
+            
+            # This automatically finds people assigned to 'selected_site' or 'ALL'
+            report = broadcast_to_directory(selected_site, risk_level, alert_msgs)
+            
+            if report:
+                st.session_state[alert_tracker_key] = True # Prevent duplicate sends
+                st.toast(f"Automated Broadcast Sent to {selected_site} Team!", icon="📢")
+                status.update(label="Auto-Alert Dispatched", state="complete")
+            else:
+                st.write("No active personnel assigned to this AOI. Notification skipped.")
+                status.update(label="No Personnel Assigned", state="error")
+
+
 
 # --- 5. TOP-LEVEL METRIC DASHBOARD ---
 # Provides immediate situational awareness before diving into the map
@@ -236,34 +261,6 @@ with tab_history:
             st.info("No significant fire history recorded in this area for the last 180 days.")
 
 with tab_dispatch:
-    # st.subheader("Communication & Notification Control")
-    
-    # # Automatic Dispatch Feedback
-    # if AUTO_ALERT_ENABLED and is_dispatch_worthy:
-    #     sent_key = f"sent_{selected_site}_{datetime.date.today()}"
-    #     if sent_key not in st.session_state:
-    #         with st.status("🚀 Automatic High-Risk Dispatch in progress...", expanded=False):
-    #             success, info = send_telegram_alert(selected_site, risk_level, alert_msgs)
-    #             if success:
-    #                 st.session_state[sent_key] = True
-    #                 st.toast("Auto-Alert Broadcasted!", icon="📢")
-    #             else:
-    #                 st.error(f"Dispatch Error: {info}")
-    #     else:
-    #         st.success("✅ Automatic alert for today has already been broadcasted to the Ranger Group.")
-
-    # st.divider()
-    
-    # # Manual Override
-    # st.write("Force a manual update to the field teams:")
-    # if st.button("📢 Manual Broadcast (Telegram)", use_container_width=True):
-    #     success, info = send_telegram_alert(selected_site, risk_level, alert_msgs)
-    #     if success:
-    #         st.toast("Manual alert dispatched successfully.")
-    #     else:
-    #         st.error(f"Manual dispatch failed: {info}")
-
-
     st.subheader("📢 Unified Command Broadcast")
     st.write("Triggering this will alert all field rangers via SMS, Email, and Telegram.")
 
@@ -282,7 +279,7 @@ with tab_dispatch:
             
             status.update(label="Broadcast Complete", state="complete", expanded=False)
         
-        st.balloons() # Visual confirmation for the user
+        st.balloons() # Visual confirmation for the user -Just for fun 😁
 
 # Operational Reports/ Monthly dispatch report
     st.divider()
@@ -317,9 +314,10 @@ with tab_directory:
 
     contacts_df = load_contacts()
 
-    # Defining the list of valid parks for the dropdown from SITES and adding "ALL"
-    park_list = SITES
-    park_list["ALL"] = (0, 0, 0, "All Protected Areas")
+    # Defining the list of valid parks for the dropdown from "SITES" DICTIONARY and adding "ALL"
+    park_list = list(SITES.keys())
+    if "ALL" not in park_list:
+        park_list.append("ALL")
 
     edited_df = st.data_editor(
         contacts_df,
@@ -331,9 +329,19 @@ with tab_directory:
                 required=True,
             ),
             "Active": st.column_config.CheckboxColumn("On Duty?"),
+            "Email": st.column_config.TextColumn(
+                "Email Address",
+                validate="^[^@]+@[^@]+\.[^@]+$",
+            ),
+            "SMS_Phone": st.column_config.TextColumn(
+                "Phone Number (SMS)",
+                help="use international format: +256...",
+                validate="^\+256\d{9}$",
+            ),
         },
         num_rows="dynamic",
-        use_container_width=True
+        use_container_width=True,
+        hide_index=True,
     )
 
     # if st.button("💾 Sync Directory & AOIs"):

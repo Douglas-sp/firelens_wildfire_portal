@@ -21,8 +21,7 @@ def evaluate_risk_level(ndvi, predictions, live_fires_df):
             alerts.append(f"🔮 AI FORECAST: High likelihood detected ({round(max_pred,1)}% match to fire patterns).")
             risk_score += 1
             
-    # 3. Check Live Thermal Activity
-    # 3. Check Live Thermal Activity
+    # 3. Check Live Thermal Activity - a count of the high-intensity thermal anomalies
     if not live_fires_df.empty:
         high_intensity_count = len(live_fires_df[live_fires_df['bright_ti4'] >= 330])
         if high_intensity_count > 0:
@@ -31,11 +30,12 @@ def evaluate_risk_level(ndvi, predictions, live_fires_df):
 
     # Mapping score to Level
     mapping = {
-        0: "NORMAL", 
+        0: "NORMAL",
         1: "ELEVATED", 
-        2: "HIGH", 3: "CRITICAL"
+        2: "HIGH", 
+        3: "CRITICAL"
     }
-    level = mapping.get(risk_score, "CRITICAL")
+    level = mapping.get(risk_score, "CRITICAL") # Default to CRITICAL if score is unknown or out of range
     
     # Check if this level triggers the automatic dispatch
     is_dispatch_worthy = level in AUTO_DISPATCH_LEVELS

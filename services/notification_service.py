@@ -1,18 +1,20 @@
 import streamlit as st
 import smtplib
+import pandas as pd  # Added missing import
 from email.message import EmailMessage
 from twilio.rest import Client
 import requests
 from utils.logger import log_dispatch
 from utils.contact_manager import load_contacts
 
-# Telegram alert
-def send_telegram_alert(site, level, messages):
-    """Existing Telegram Logic."""
+# Telegram alert - Updated to accept individual chat_id
+def send_telegram_alert(site, level, messages, chat_id=None):
     token = st.secrets["TELEGRAM_BOT_TOKEN"]
-    chat_id = st.secrets["TELEGRAM_CHAT_ID"]
+    # If no specific ID provided, use the default from secrets
+    target_id = chat_id if chat_id else st.secrets["TELEGRAM_CHAT_ID"]
+    
     text = f"🚨 *{level} FIRE RISK: {site}*\n" + "\n".join([f"• {m}" for m in messages])
-    url = f"https://api.telegram.org/bot{token}/sendMessage?chat_id={chat_id}&text={text}&parse_mode=Markdown"
+    url = f"https://api.telegram.org/bot{token}/sendMessage?chat_id={target_id}&text={text}&parse_mode=Markdown"
     try:
         res = requests.get(url)
         return res.status_code == 200, "Sent"
@@ -20,13 +22,13 @@ def send_telegram_alert(site, level, messages):
         return False, str(e)
 
 # Email alert
-def send_email_alert(site, level, messages):
-    """Sends a formal email alert via SMTP."""
+def send_email_alert(site, level, messages, recipient_email=None):
     msg = EmailMessage()
     msg.set_content(f"FireLens Alert for {site}\nRisk Level: {level}\n\nDetails:\n" + "\n".join(messages))
     msg['Subject'] = f"🔥 {level} Fire Risk Alert - {site}"
     msg['From'] = st.secrets["EMAIL_SENDER"]
-    msg['To'] = "wamaniray@uwa.go.ug" # Example recipient list
+    # Use directory email if provided, else fallback to your default
+    msg['To'] = recipient_email if recipient_email else "wamaniray@uwa.go.ug"
 
     try:
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
@@ -38,7 +40,6 @@ def send_email_alert(site, level, messages):
 
 # SMS alert
 def send_sms_alert(site, level, messages, recipient):
-    """Sends a high-priority SMS (Twilio Example)."""
     try:
         client = Client(st.secrets["TWILIO_ACCOUNT_SID"], st.secrets["TWILIO_AUTH_TOKEN"])
         body = f"FireLens {level}: {site}. Check portal for coords."
@@ -47,93 +48,41 @@ def send_sms_alert(site, level, messages, recipient):
     except:
         return False
 
-# PushOver notification alert
-def send_push_alert(site, level, messages):
-    """
-    Sends a high-priority push notification via Pushover.
-    Supports 'Emergency' priority which bypasses silent mode.
-    """
+# PushOver alert - Updated to accept individual user_key
+def send_push_alert(site, level, messages, user_key=None):
     url = "https://api.pushover.net/1/messages.json"
-    
-    # Logic: If CRITICAL, use emergency priority (2) with 30-sec retries
-    # If we use priority=2, the ranger’s phone will keep screaming until they tap "Acknowledge" in the app. 
-    # The system can even notify you if they haven't seen it after 5 minutes.
     priority = 2 if level == "CRITICAL" else 1
+    # Use directory key if provided, else fallback to secrets
+    target_user = user_key if user_key else st.secrets["PUSHOVER_USER_KEY"]
     
     data = {
         "token": st.secrets["PUSHOVER_API_TOKEN"],
-        "user": st.secrets["PUSHOVER_USER_KEY"],
+        "user": target_user,
         "title": f"🔥 {level} FIRE RISK: {site}",
         "message": "\n".join(messages),
         "priority": priority,
         "sound": "siren" if level == "CRITICAL" else "climb",
-        "expire": 3600,   # Retry for 1 hour
-        "retry": 30       # Retry every 30 seconds until acknowledged
+        "expire": 3600, "retry": 30
     }
-
     try:
         response = requests.post(url, data=data)
         return response.status_code == 200
-    except Exception as e:
-        print(f"Pushover Error: {e}")
+    except:
         return False
 
-# WhatsApp notification alert
+# WhatsApp alert
 def send_whatsapp_alert(site, level, messages, recipient):
-    """
-    Sends a WhatsApp message via Twilio.
-    Note: Recipient must have 'opted-in' to the Twilio sandbox for testing.
-    """
     try:
         client = Client(st.secrets["TWILIO_ACCOUNT_SID"], st.secrets["TWILIO_AUTH_TOKEN"])
-        
-        # Crafting a high-impact message
         header = "🔥 *FIRELENS CRITICAL ALERT*" if level == "CRITICAL" else "⚠️ *FIRELENS ADVISORY*"
         body = f"{header}\n\n*Site:* {site}\n*Risk:* {level}\n\n*Details:*\n" + "\n".join([f"- {m}" for m in messages])
-        
-        message = client.messages.create(
-            from_=st.secrets["TWILIO_WHATSAPP_FROM"],
-            body=body,
-            to=recipient
-        )
+        client.messages.create(from_=st.secrets["TWILIO_WHATSAPP_FROM"], body=body, to=recipient)
         return True
-    except Exception as e:
-        print(f"WhatsApp Error: {e}")
+    except:
         return False
 
-# Master dispatch message function - v1
-# def broadcast_all_channels(site, level, messages):
-#     """
-#     MASTER DISPATCH: Sends to all active channels simultaneously.
-#     """
-#     results = {}
-#     # 1. Real-time Chat
-#     results['Telegram'] = send_telegram_alert(site, level, messages)[0]
-    
-#     # 2. Critical Mobile Push
-#     results['Push (Pushover)'] = send_push_alert(site, level, messages)
-    
-#     # 3. High-Reliability SMS
-#     results['SMS (Twilio)'] = send_sms_alert(site, level, messages)
-    
-#     # 4. Formal Log (Email)
-#     results['Email (SMTP)'] = send_email_alert(site, level, messages)
-
-#     # 5. WhatsApp notification alert
-#     results['WhatsApp'] = send_whatsapp_alert(site, level, messages)
-        
-#     # Push notifications (using Streamlit's toast for web-push feel)
-#     st.toast(f"BROADCAST ACTIVE: {level} risk at {site}", icon="📢")
-    
-#     return results
-
 def broadcast_to_directory(selected_site, level, messages):
-    """
-    Filters the directory by AOI and sends alerts to relevant staff across all channels.
-    """
     contacts = load_contacts()
-    
-    # Filter for active staff assigned to this site or "ALL"
     relevant_contacts = contacts[
         (contacts['Active'] == True) & 
         (contacts['Assigned_Sites'].str.contains(selected_site, na=False) | 
@@ -142,7 +91,6 @@ def broadcast_to_directory(selected_site, level, messages):
     
     report = []
     for _, person in relevant_contacts.iterrows():
-        # Track which channels worked for THIS person
         channels_ok = []
         
         # 1. SMS
@@ -153,12 +101,16 @@ def broadcast_to_directory(selected_site, level, messages):
         if pd.notna(person.get('WA_Phone')) and send_whatsapp_alert(selected_site, level, messages, person['WA_Phone']):
             channels_ok.append("WA")
             
-        # 3. Telegram (Existing/Global)
-        if pd.notna(person.get('Telegram_ID')) and send_telegram_alert(selected_site, level, messages)[0]:
+        # 3. Telegram (Passing the ID from the CSV)
+        if pd.notna(person.get('Telegram_ID')) and send_telegram_alert(selected_site, level, messages, person['Telegram_ID'])[0]:
             channels_ok.append("TG")
+
+        # 4. Pushover
+        if pd.notna(person.get('Pushover_Key')) and send_push_alert(selected_site, level, messages, person['Pushover_Key']):
+            channels_ok.append("Push")
             
-        # 4. Email
-        if pd.notna(person.get('Email')) and send_email_alert(selected_site, level, messages):
+        # 5. Email
+        if pd.notna(person.get('Email')) and send_email_alert(selected_site, level, messages, person['Email']):
             channels_ok.append("Email")
 
         report.append({
@@ -166,7 +118,14 @@ def broadcast_to_directory(selected_site, level, messages):
             "Status": f"✅ {', '.join(channels_ok)}" if channels_ok else "❌ All Failed"
         })
     
-    # Auto-Log the dispatch
-    log_dispatch(site=selected_site, level=level, recipients_count=len(relevant_contacts), channel_report=report)
+    # --- Converting List to Dictionary for the Logger ---
+    log_report = {item['Name']: item['Status'] for item in report}
+    
+    log_dispatch(
+        site=selected_site, 
+        level=level, 
+        recipients_count=len(relevant_contacts), 
+        channel_report=log_report
+    )
     
     return report
