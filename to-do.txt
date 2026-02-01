@@ -16,3 +16,8 @@ LOGGING MESSAGES SENT OUT
 6. Configure whatsapp and get the phone id
 7. Configure phone number for sms and get the phone id
 8. Configure sms and get the phone id
+
+############### FEEDBACK LOOP ###############
+
+1. User/ patrol team can submit a fire incident even without a notification from the system/portal
+2. odk_service - a script that runs every time at intervals/ whenever there is a new submission and NOT when we open the "Dispatch Center" tab.

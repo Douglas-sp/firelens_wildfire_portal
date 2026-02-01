@@ -14,9 +14,11 @@ from services.nasa_service import fetch_nasa_fires, fetch_historical_fires
 from services.model_service import load_xgb_model, get_aoi_predictions
 from services.alert_service import evaluate_risk_level
 from services.notification_service import broadcast_to_directory
+from services.odk_service import fetch_kobo_reports
 from utils.pdf_generator import create_pdf
 from utils.ui_components import inject_custom_css, display_risk_banner
 from utils.contact_manager import load_contacts
+
 
 
 # --- 2. SETUP & INITIALIZATION ---
@@ -131,9 +133,10 @@ m_col4.metric("Risk Status", risk_level)
 st.divider()
 
 # --- 6. TACTICAL TABS ---
-tab_map, tab_analytics, tab_history, tab_dispatch, tab_directory = st.tabs([
+tab_map, tab_analytics, tab_odk, tab_history, tab_dispatch, tab_directory = st.tabs([
     "🗺️ Tactical Map", 
     "📊 Analysis & Navigation", 
+    "🧾 Field Reports",     
     "📈 History & Trends", 
     "📢 Dispatch Center", 
     "📞 Contact Directory"
@@ -173,6 +176,20 @@ with tab_map:
             ).add_to(m)
 
     st_folium(m, width="100%", height=600, returned_objects=[])
+
+    # ODK Reports converted to markers on map
+    ground_reports = fetch_kobo_reports()
+
+    if not ground_reports.empty:
+        for _, report in ground_reports.iterrows():
+            # Color code: Red for confirmed fire, Green for false alarm
+            icon_color = 'red' if report['incident_type'] == 'real_fire' else 'green'
+        
+            folium.Marker(
+                location=[report['lat'], report['lon']],
+                popup=f"ODK Report: {report['fire_severity']} severity",
+                icon=folium.Icon(color=icon_color, icon='info-sign')
+            ).add_to(m)
 
 with tab_analytics:
     a_col1, a_col2 = st.columns([1, 2])
@@ -232,6 +249,58 @@ with tab_analytics:
                        f"https://apps.sentinel-hub.com/eo-browser/?lat={lat}&lng={lon}&zoom=11")
     else:
         st.warning("⚠️ Cloud cover is currently too high to generate a clear visual snapshot.")
+
+
+with tab_odk:
+    st.divider()
+    st.subheader("📸 Field Intelligence Gallery (ODK)")
+    
+    from services.odk_service import fetch_kobo_reports, fetch_kobo_image_bytes
+
+    with st.spinner("Syncing field reports..."):
+        field_data = fetch_kobo_reports()
+
+    if not field_data.empty:
+        # We only want entries that have a photo
+        # Kobo usually stores the image name in a column named after your form field (e.g., 'evidence_photo')
+        # And the full URL in '_attachments'
+        
+        photo_reports = field_data.dropna(subset=['_attachments'])
+        
+        if photo_reports.empty:
+            st.info("No field photos submitted yet.")
+        else:
+            # Create a 3-column grid
+            cols = st.columns(3)
+            for i, (_, report) in enumerate(photo_reports.iterrows()):
+                with cols[i % 3]:
+                    # 1. Get the download URL for the photo
+                    attachments = report.get('_attachments', [])
+                    if attachments:
+                        img_url = attachments[0].get('download_url')
+                        img_bytes = fetch_kobo_image_bytes(img_url)
+                        
+                        if img_bytes:
+                            st.image(img_bytes, use_container_width=True)
+                        else:
+                            st.warning("Image unavailable")
+
+                        # 2. Display Metadata
+                        severity = report.get('fire_severity', 'N/A')
+                        status = report.get('incident_type', 'Unknown')
+                        date_str = report.get('_submission_time', '')[:10]
+                        
+                        st.markdown(f"""
+                        **Status:** {status}  
+                        **Severity:** `{severity}`  
+                        **Date:** {date_str}
+                        """)
+                        
+                        with st.expander("📝 Field Notes"):
+                            st.write(report.get('notes', 'No notes provided.'))
+    else:
+        st.info("Waiting for first ground-truth report from ODK Collect...")
+
 
 with tab_history:
     st.subheader(f"Historical Fire Activity: {selected_site}")
