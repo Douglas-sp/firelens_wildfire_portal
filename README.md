@@ -2,6 +2,8 @@
 
 A tactical Command & Control dashboard for wildfire monitoring, risk forecasting, and automated alert dispatch in Uganda's Protected Areas.
 
+📖 **[Read the User Manual](USER_MANUAL.md)** for detailed operational instructions.
+
 ## 1. Project Map & Architecture
 
 ```

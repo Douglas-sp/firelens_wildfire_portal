@@ -6,6 +6,8 @@ Hide the contact info from the public? HOW?
 
 LOGGING MESSAGES SENT OUT 
 
+Error Handling: Wrap the NASA and Kobo calls in robust "Try/Except" blocks.
+
 >>Add a "Test Connection" button inside the data editor row so you can send a single test ping to a specific ranger before turning on the full automation?
 
 1. Configure telegram bot and get the token and chat id
@@ -24,3 +26,6 @@ LOGGING MESSAGES SENT OUT
 3. Distiguish ODK reports by AOI
 4. ODK entries should be timestamped
 5. ODK entries should be based on the AOI selected
+
+########## IMPROVEMENTS ##########
+1. "Model Performance" tab that shows a scorecard of how many AI predictions were confirmed by rangers this week/ periodically

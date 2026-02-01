@@ -48,7 +48,7 @@ def get_kobo_media_url(file_path):
     if pd.isna(file_path):
         return None
     
-    # Standard Kobo media URL format
+    # For the Standard Kobo media URL format
     # Replace 'kf.kobotoolbox.org' when using the 'kobo.humanitarianresponse.info' server
     base_url = "https://kf.kobotoolbox.org/api/v2/assets/{}/data/".format(st.secrets["KOBO_ASSET_ID"])
     
