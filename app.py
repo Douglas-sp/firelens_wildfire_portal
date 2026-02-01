@@ -14,12 +14,10 @@ from services.nasa_service import fetch_nasa_fires, fetch_historical_fires
 from services.model_service import load_xgb_model, get_aoi_predictions
 from services.alert_service import evaluate_risk_level
 from services.notification_service import broadcast_to_directory
-from services.odk_service import fetch_kobo_reports
+from services.odk_service import fetch_kobo_reports, fetch_kobo_image_bytes
 from utils.pdf_generator import create_pdf
 from utils.ui_components import inject_custom_css, display_risk_banner
 from utils.contact_manager import load_contacts
-
-
 
 # --- 2. SETUP & INITIALIZATION ---
 st.set_page_config(
@@ -28,10 +26,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Apply custom dark-themed CSS styling
 inject_custom_css()
-
-# API Keys and Model Loading
 NASA_KEY = st.secrets['NASA_MAPKEY']
 model = load_xgb_model()
 
@@ -40,156 +35,93 @@ with st.sidebar:
     st.title("FireLens Portal")
     st.subheader("Tactical Configuration")
     
+    # Selection determines the site
     selected_site = st.selectbox("🎯 Target Protected Area", list(SITES.keys()))
+    
+    # IMMEDIATELY DEFINE lat/lon so they are available for the rest of the script
     lat, lon, buffer, desc = SITES[selected_site]
+
+    # RESET LOGIC: If site changes, update the map center
+    if 'last_site' not in st.session_state or st.session_state['last_site'] != selected_site:
+        st.session_state['map_center'] = [lat, lon]
+        st.session_state['map_zoom'] = 11 
+        st.session_state['last_site'] = selected_site
     
+    # Initialize session states if not present
+    if 'map_center' not in st.session_state:
+        st.session_state['map_center'] = [lat, lon]
+    if 'map_zoom' not in st.session_state:
+        st.session_state['map_zoom'] = 11
+
+    # Function to change map view (used by ODK "Locate" buttons)
+    def fly_to_site(target_lat, target_lon):
+        st.session_state['map_center'] = [target_lat, target_lon]
+        st.session_state['map_zoom'] = 15 
+
     st.divider()
-    
-    # Forecast controls for XGBoost temporal features
     target_month_name = st.select_slider("Forecast Month", options=list(MONTH_MAP.keys()))
     target_month = MONTH_MAP[target_month_name]
     
-    st.divider()
-    
-    # Image upload for inclusion in the PDF tactical report
-    map_snapshot = st.sidebar.file_uploader("Upload Map Snapshot", type=['png', 'jpg'])
+    map_snapshot = st.file_uploader("Upload Map Snapshot", type=['png', 'jpg'])
     
     st.divider()
-    st.caption(f"System Status: Operational")
-    st.caption(f"v1.2.0 | © 2026 FireLens")
-    with st.sidebar:
-        st.divider()
-        # Create the heartbeat status indicator
-        st.markdown("""
-            <div style='display: flex; align-items: center;'>
-                <span class="heartbeat-icon">●</span>
-                <span class="status-text">SYSTEM LIVE: DATA SYNC ACTIVE</span>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        # Calculate time since last refresh
-        now = datetime.datetime.now().strftime("%H:%M:%S")
-        st.caption(f"Last Intelligence Update: {now} EAT")
+    st.markdown("<div style='display: flex; align-items: center;'><span class='heartbeat-icon'>●</span><span class='status-text'>SYSTEM LIVE</span></div>", unsafe_allow_html=True)
+    st.caption(f"Update: {datetime.datetime.now().strftime('%H:%M:%S')} EAT")
 
-# --- 4. DATA SYNCHRONIZATION (The Logic Core) ---
-# We manage the NDVI sync here to ensure it only updates when the site changes
-if 'ndvi' not in st.session_state or st.session_state.get('last_site') != selected_site:
+# --- 4. DATA SYNCHRONIZATION ---
+if 'ndvi' not in st.session_state or st.session_state.get('last_site_ndvi') != selected_site:
     with st.spinner("🛰️ Syncing Satellite Fuel Data..."):
         st.session_state['ndvi'] = get_live_ndvi(lat, lon, buffer)
-        st.session_state['last_site'] = selected_site
+        st.session_state['last_site_ndvi'] = selected_site
 
-# Run background processing for Predictions and NASA fetches
 with st.spinner("Processing spatial intelligence..."):
-    # AI Prediction Grid
     heat_data = get_aoi_predictions(model, lat, lon, buffer, st.session_state['ndvi'], target_month)
-    
-    # Live Thermal Anomalies
     live_fires = fetch_nasa_fires(lat, lon, buffer, NASA_KEY)
-    
 
-# Multi-factor Risk Level Evaluation
-risk_level, alert_msgs, is_dispatch_worthy = evaluate_risk_level(
-    st.session_state['ndvi'],
-    heat_data,
-    live_fires
-)
+risk_level, alert_msgs, is_dispatch_worthy = evaluate_risk_level(st.session_state['ndvi'], heat_data, live_fires)
 
-# AUTOMATIC DISPATCH LOGIC
-if AUTO_ALERT_ENABLED and is_dispatch_worthy:
-    # 1. Create a unique key for today and this site
-    today_str = datetime.date.today().strftime("%Y-%m-%d")
-    alert_tracker_key = f"alert_sent_{selected_site}_{today_str}"
-
-    # 2. Only send if we haven't sent an auto-alert for THIS site TODAY
-    if alert_tracker_key not in st.session_state:
-        with st.status(f"🚨 AUTO-DISPATCH: High Risk at {selected_site}...", expanded=False) as status:
-            st.write("Fetching assigned personnel...")
-            
-            # This automatically finds people assigned to 'selected_site' or 'ALL'
-            report = broadcast_to_directory(selected_site, risk_level, alert_msgs)
-            
-            if report:
-                st.session_state[alert_tracker_key] = True # Prevent duplicate sends
-                st.toast(f"Automated Broadcast Sent to {selected_site} Team!", icon="📢")
-                status.update(label="Auto-Alert Dispatched", state="complete")
-            else:
-                st.write("No active personnel assigned to this AOI. Notification skipped.")
-                status.update(label="No Personnel Assigned", state="error")
-
-
-
-# --- 5. TOP-LEVEL METRIC DASHBOARD ---
-# Provides immediate situational awareness before diving into the map
-eat_now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+# --- 5. TOP-LEVEL DASHBOARD ---
 st.title(f"📍 {selected_site}")
-st.caption(f"Operational Briefing • {eat_now.strftime('%Y-%m-%d %H:%M')} EAT")
-
 m_col1, m_col2, m_col3, m_col4 = st.columns(4)
 m_col1.metric("Vegetation NDVI", st.session_state['ndvi'])
 m_col2.metric("Active Fires", len(live_fires))
-m_col3.metric("AI Confidence", f"{round(max([p[2] for p in heat_data]), 1) if heat_data else 0}%")
-m_col4.metric("Risk Status", risk_level)
-
-st.divider()
+m_col3.metric("AI Risk Score", f"{round(max([p[2] for p in heat_data]), 1) if heat_data else 0}%")
+m_col4.metric("Status", risk_level)
 
 # --- 6. TACTICAL TABS ---
 tab_map, tab_analytics, tab_odk, tab_history, tab_dispatch, tab_directory = st.tabs([
-    "🗺️ Tactical Map", 
-    "📊 Analysis & Navigation", 
-    "🧾 Field Reports",     
-    "📈 History & Trends", 
-    "📢 Dispatch Center", 
-    "📞 Contact Directory"
+    "🗺️ Tactical Map", "📊 Analysis", "🧾 Field Reports", "📈 History", "📢 Dispatch", "📞 Directory"
 ])
 
 with tab_map:
-    # High-visibility pulsing banner for risk status
     display_risk_banner(risk_level, alert_msgs)
     
-    # Map Legend Overlay
-    st.markdown("""
-        <div style='display: flex; gap: 20px; justify-content: center; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 10px; margin-bottom: 10px;'>
-            <span style='color: #4caf50;'>● <b>Green:</b> Healthy Vegetation</span>
-            <span style='color: #ffaa00;'>🔥 <b>Heatmap:</b> AI Risk Prediction</span>
-            <span style='color: #ff4b4b;'>📍 <b>Red Icon:</b> NASA Live Detection</span>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    # Map Generation - Focus on Full Width
-    m = folium.Map(location=[lat, lon], zoom_start=11, tiles=None)
-    folium.TileLayer(
-        tiles='https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', 
-        attr='Google', name='Satellite Labels', overlay=False, control=True
-    ).add_to(m)
+    # 1. Initialize Folium Map
+    m = folium.Map(location=st.session_state['map_center'], zoom_start=st.session_state['map_zoom'], tiles=None)
+    folium.TileLayer(tiles='https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', attr='Google', name='Satellite').add_to(m)
 
-    # AI Predictive Heatmap Layer
+    # 2. Add Heatmap
     if heat_data:
         HeatMap(heat_data, radius=15, blur=8, min_opacity=0.4).add_to(m)
 
-    # NASA Real-time Fire Markers
+    # 3. Add NASA Markers
     if not live_fires.empty:
         for _, row in live_fires.iterrows():
-            folium.CircleMarker(
-                [row['latitude'], row['longitude']], 
-                radius=10, color='#ff4b4b', fill=True, fill_opacity=0.7,
-                popup=f"Intensity: {row['bright_ti4']}K"
-            ).add_to(m)
+            folium.CircleMarker([row['latitude'], row['longitude']], radius=10, color='#ff4b4b', fill=True).add_to(m)
 
-    st_folium(m, width="100%", height=600, returned_objects=[])
-
-    # ODK Reports converted to markers on map
+    # 4. Add ODK Ground Reports (Crucial: Add to 'm' before rendering)
     ground_reports = fetch_kobo_reports()
-
     if not ground_reports.empty:
         for _, report in ground_reports.iterrows():
-            # Color code: Red for confirmed fire, Green for false alarm
-            icon_color = 'red' if report['incident_type'] == 'real_fire' else 'green'
-        
+            color = 'red' if report['incident_type'] == 'real_fire' else 'green'
             folium.Marker(
                 location=[report['lat'], report['lon']],
-                popup=f"ODK Report: {report['fire_severity']} severity",
-                icon=folium.Icon(color=icon_color, icon='info-sign')
+                popup=f"ODK: {report['fire_severity']} severity",
+                icon=folium.Icon(color=color, icon='camera')
             ).add_to(m)
+
+    # 5. Render Map
+    st_folium(m, width="100%", height=600, returned_objects=[])
 
 with tab_analytics:
     a_col1, a_col2 = st.columns([1, 2])
@@ -252,54 +184,33 @@ with tab_analytics:
 
 
 with tab_odk:
-    st.divider()
-    st.subheader("📸 Field Intelligence Gallery (ODK)")
-    
-    from services.odk_service import fetch_kobo_reports, fetch_kobo_image_bytes
+    st.subheader("📸 Field Intelligence Gallery")
+    if not ground_reports.empty:
+        photo_reports = ground_reports.dropna(subset=['_attachments'])
+        for i, (_, report) in enumerate(photo_reports.iterrows()):
+            with st.container(border=True):
+                col_img, col_info = st.columns([1, 1.5])
+                
+                # Fetch image bytes for this specific report
+                attachments = report.get('_attachments', [])
+                img_bytes = None
+                if attachments:
+                    img_bytes = fetch_kobo_image_bytes(attachments[0].get('download_url'))
 
-    with st.spinner("Syncing field reports..."):
-        field_data = fetch_kobo_reports()
-
-    if not field_data.empty:
-        # We only want entries that have a photo
-        # Kobo usually stores the image name in a column named after your form field (e.g., 'evidence_photo')
-        # And the full URL in '_attachments'
-        
-        photo_reports = field_data.dropna(subset=['_attachments'])
-        
-        if photo_reports.empty:
-            st.info("No field photos submitted yet.")
-        else:
-            # Create a 3-column grid
-            cols = st.columns(3)
-            for i, (_, report) in enumerate(photo_reports.iterrows()):
-                with cols[i % 3]:
-                    # 1. Get the download URL for the photo
-                    attachments = report.get('_attachments', [])
-                    if attachments:
-                        img_url = attachments[0].get('download_url')
-                        img_bytes = fetch_kobo_image_bytes(img_url)
-                        
-                        if img_bytes:
-                            st.image(img_bytes, use_container_width=True)
-                        else:
-                            st.warning("Image unavailable")
-
-                        # 2. Display Metadata
-                        severity = report.get('fire_severity', 'N/A')
-                        status = report.get('incident_type', 'Unknown')
-                        date_str = report.get('_submission_time', '')[:10]
-                        
-                        st.markdown(f"""
-                        **Status:** {status}  
-                        **Severity:** `{severity}`  
-                        **Date:** {date_str}
-                        """)
-                        
-                        with st.expander("📝 Field Notes"):
-                            st.write(report.get('notes', 'No notes provided.'))
+                with col_img:
+                    if img_bytes:
+                        st.image(img_bytes, use_container_width=True)
+                    else:
+                        st.info("No photo provided")
+                
+                with col_info:
+                    st.markdown(f"**Type:** {report['incident_type']} | **Severity:** `{report['fire_severity']}`")
+                    st.button("📍 Locate on Map", key=f"btn_{i}", on_click=fly_to_site, args=(report['lat'], report['lon']), type="primary")
+                    st.write(f"*Submitted: {report['_submission_time'][:16]}*")
+                    with st.expander("Notes"):
+                        st.write(report.get('notes', 'No notes.'))
     else:
-        st.info("Waiting for first ground-truth report from ODK Collect...")
+        st.info("No ground reports found.")
 
 
 with tab_history:

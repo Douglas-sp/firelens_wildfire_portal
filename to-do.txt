@@ -21,3 +21,6 @@ LOGGING MESSAGES SENT OUT
 
 1. User/ patrol team can submit a fire incident even without a notification from the system/portal
 2. odk_service - a script that runs every time at intervals/ whenever there is a new submission and NOT when we open the "Dispatch Center" tab.
+3. Distiguish ODK reports by AOI
+4. ODK entries should be timestamped
+5. ODK entries should be based on the AOI selected
