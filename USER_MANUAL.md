@@ -1,7 +1,7 @@
 # FireLens User Manual
 
 **Version:** 1.0  
-**Last Updated:** February 2026  
+**Last Updated:** February 1st, 2026  
 **Target Audience:** Command Center Operators, Park Wardens, and Incident Commanders.
 
 ---
@@ -120,5 +120,5 @@ This is your **Situation Room**. It automatically updates based on your Sidebar 
 
 ## 📞 Support
 For technical issues, system errors, or to request a new Park/AOI addition:
-*   **Technical Lead:** [Insert Name]
-*   **IT Support Email:** [Insert Email]
+*   **Technical Lead:** Raymond
+*   **IT Support Email:** wamaniray@gmail.com
