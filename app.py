@@ -89,8 +89,8 @@ m_col3.metric("AI Risk Score", f"{round(max([p[2] for p in heat_data]), 1) if he
 m_col4.metric("Status", risk_level)
 
 # --- 6. TACTICAL TABS ---
-tab_map, tab_analytics, tab_odk, tab_history, tab_dispatch, tab_directory = st.tabs([
-    "🗺️ Tactical Map", "📊 Analysis", "🧾 Field Reports", "📈 History", "📢 Dispatch", "📞 Directory"
+tab_map, tab_analytics, tab_odk, tab_history, tab_dispatch, tab_directory, tab_help = st.tabs([
+    "🗺️ Tactical Map", "📊 Analysis", "🧾 Field Reports", "📈 History", "📢 Dispatch", "📞 Directory", "📘 Help"
 ])
 
 with tab_map:
@@ -327,4 +327,54 @@ with tab_directory:
     # if st.button("💾 Sync Directory & AOIs"):
     #     save_contacts(edited_df)
     #     st.success("AOI Assignments Saved.")
+
+with tab_help:
+    st.subheader("📚 FireLens Documentation Center")
+    h_col1, h_col2 = st.columns([2, 1])
+
+    with h_col1:
+        st.markdown("### User Manual")
+        try:
+            with open("USER_MANUAL.md", "r", encoding="utf-8") as f:
+                manual_content = f.read()
+            # Render markdown in a scrollable container if possible, or just standard
+            with st.container(height=600):
+                st.markdown(manual_content, unsafe_allow_html=True)
+        except Exception as e:
+            st.error(f"Could not load User Manual: {e}")
+
+    with h_col2:
+        st.markdown("### ⚙️ Technical Resources")
+        
+        # Download User Manual
+        if 'manual_content' in locals():
+            st.download_button(
+                label="Download User Manual (.MD)",
+                data=manual_content,
+                file_name="FireLens_User_Manual.md",
+                mime="text/markdown",
+                use_container_width=True
+            )
+
+        st.divider()
+
+        # Technical Docs (explaned.md)
+        try:
+            with open("explaned.md", "r", encoding="utf-8") as f:
+                tech_content = f.read()
+            
+            with st.expander("View System Architecture"):
+                st.markdown(tech_content)
+                
+            st.download_button(
+                label="Download Tech Specs (MD)",
+                data=tech_content,
+                file_name="FireLens_System_Architecture.md",
+                mime="text/markdown",
+                use_container_width=True
+            )
+        except Exception as e:
+            st.warning("Technical documentation not found.")
+            
+        st.success("✅ **Support Contact**\n\nTechnical Lead: Raymond\n\nEmail: wamaniray@gmail.com")
 
