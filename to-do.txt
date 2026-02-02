@@ -1,3 +1,7 @@
+########## security ##########
+1. Make a security audit of the entire application
+2. 
+
 Remove telegram sent feature on display before multi-channel integration
 
 Automate the notification dispatch to assigned sites personnel based on the AOI currently selected. No need to selec the AOI for dispatching
