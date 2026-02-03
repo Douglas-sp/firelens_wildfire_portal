@@ -102,7 +102,7 @@ with tab_map:
 
     # 2. Add Heatmap
     # Filter out low-probability points to reduce noise - allowing only points with probability > 0.65
-    heat_data = [point for point in heat_data if point[2] > 0.95]
+    heat_data = [point for point in heat_data if point[2] > 0.65]
     if heat_data:
         HeatMap(
             heat_data,
