@@ -102,12 +102,12 @@ with tab_map:
 
     # 2. Add Heatmap
     # Filter out low-probability points to reduce noise - allowing only points with probability > 0.65
-    heat_data = [point for point in heat_data if point[2] > 0.65]
+    # heat_data = [point for point in heat_data if point[2] > 0.65]
     if heat_data:
         HeatMap(
             heat_data,
-            radius=25, #size of the heatmap - larger radius = larger heatmap and makes it look like a zone
-            blur=15, #blur of the heatmap - larger blur = larger heatmap
+            radius=5, #size of the heatmap - larger radius = larger heatmap and makes it look like a zone
+            blur=35, #blur of the heatmap - larger blur = larger heatmap
             min_opacity=0.4, #opacity of the heatmap - lower opacity = more transparent
             gradient={0.4: 'blue', 0.67: 'yellow', 0.9: 'red'} #colors of the heatmap - 
         ).add_to(m)
