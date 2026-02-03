@@ -102,7 +102,13 @@ with tab_map:
 
     # 2. Add Heatmap
     if heat_data:
-        HeatMap(heat_data, radius=15, blur=8, min_opacity=0.4).add_to(m)
+        HeatMap(
+            heat_data,
+            radius=25, #size of the heatmap - larger radius = larger heatmap and makes it look like a zone
+            blur=15, #blur of the heatmap - larger blur = larger heatmap
+            min_opacity=0.4, #opacity of the heatmap - lower opacity = more transparent
+            gradient={0.4: 'blue', 0.67: 'yellow', 0.9: 'red'} #colors of the heatmap - 
+        ).add_to(m)
 
     # 3. Add NASA Markers
     if not live_fires.empty:
