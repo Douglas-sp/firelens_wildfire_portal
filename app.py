@@ -22,7 +22,7 @@ from utils.contact_manager import load_contacts
 # --- 2. SETUP & INITIALIZATION ---
 st.set_page_config(
     page_title="FireLens Uganda | Tactical Command",
-    page_icon="🛡️",
+    page_icon="🔥",
     layout="wide"
 )
 

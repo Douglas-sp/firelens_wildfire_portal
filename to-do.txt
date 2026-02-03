@@ -2,7 +2,10 @@
 1. Make a security audit of the entire application
 2. 
 
-Remove telegram sent feature on display before multi-channel integration
+######QUESTIONS######
+1. The satellite passed by a while ago, so where are the live satellite fire alerts coming from?
+2. 
+ve telegram sent feature on display before multi-channel integration
 
 Automate the notification dispatch to assigned sites personnel based on the AOI currently selected. No need to selec the AOI for dispatching
 Situational status update checking??? is it correct? and is it necessary feature-YES/maybe.
