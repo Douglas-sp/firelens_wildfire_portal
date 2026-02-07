@@ -36,7 +36,7 @@ with st.sidebar:
     st.subheader("Tactical Configuration")
     
     # Selection determines the site
-    selected_site = st.selectbox("🎯 Target Protected Area", list(SITES.keys()))
+    selected_site = st.selectbox("Target Protected Area", list(SITES.keys()))
     
     # IMMEDIATELY DEFINE lat/lon so they are available for the rest of the script
     lat, lon, buffer, desc = SITES[selected_site]
@@ -81,7 +81,7 @@ with st.spinner("Processing spatial intelligence..."):
 risk_level, alert_msgs, is_dispatch_worthy = evaluate_risk_level(st.session_state['ndvi'], heat_data, live_fires)
 
 # --- 5. TOP-LEVEL DASHBOARD ---
-st.title(f"📍 {selected_site}")
+st.title(f"{selected_site}")
 m_col1, m_col2, m_col3, m_col4 = st.columns(4)
 m_col1.metric("Vegetation NDVI", st.session_state['ndvi'])
 m_col2.metric("Active Fires", len(live_fires))
@@ -90,7 +90,7 @@ m_col4.metric("Status", risk_level)
 
 # --- 6. TACTICAL TABS ---
 tab_map, tab_analytics, tab_odk, tab_history, tab_dispatch, tab_directory, tab_help = st.tabs([
-    "🗺️ Tactical Map", "📊 Analysis", "🧾 Field Reports", "📈 History", "📢 Dispatch", "📞 Directory", "📘 Help"
+    "Tactical Map", "Analysis", "Field Reports", "History", "Dispatch", "Directory", "Help"
 ])
 
 with tab_map:
@@ -141,7 +141,7 @@ with tab_analytics:
         risk_label = "PEAK" if target_month in [1, 2, 12] else "REDUCED"
         pdf_data = create_pdf(selected_site, st.session_state['ndvi'], risk_label, desc, live_fires, map_snapshot)
         st.download_button(
-            "📄 Export Tactical PDF Report", 
+            "Export Tactical PDF Report", 
             data=pdf_data, 
             file_name=f"FireLens_{selected_site}_{datetime.date.today()}.pdf",
             use_container_width=True
@@ -160,7 +160,7 @@ with tab_analytics:
             st.write("No active thermal anomalies detected in this AOI.")
 
     st.divider()
-    st.subheader("🖼️ Visual Intelligence Gallery")
+    st.subheader("Visual Intelligence Gallery")
 
     # Fetch URL and Metadata
     snapshot_url, acq_date, clouds = get_satellite_snapshot(lat, lon, buffer)
@@ -192,7 +192,7 @@ with tab_analytics:
 
 
 with tab_odk:
-    st.subheader("📸 Field Intelligence Gallery")
+    st.subheader("Field Intelligence Gallery")
     if not ground_reports.empty:
         photo_reports = ground_reports.dropna(subset=['_attachments'])
         for i, (_, report) in enumerate(photo_reports.iterrows()):
@@ -249,17 +249,17 @@ with tab_history:
             st.info("No significant fire history recorded in this area for the last 180 days.")
 
 with tab_dispatch:
-    st.subheader("📢 Unified Command Broadcast")
+    st.subheader("Unified Command Broadcast")
     st.write("Triggering this will alert all field rangers via SMS, Email, and Telegram.")
 
-    if st.button("🚀 INITIATE MULTI-CHANNEL DISPATCH", use_container_width=True):
+    if st.button("INITIATE MULTI-CHANNEL DISPATCH", use_container_width=True):
         with st.status("Dispatching alerts across Uganda...", expanded=True) as status:
             st.write("Checking Satellite bridge...")
             # Run the broadcast
             dispatch_report = broadcast_to_directory(selected_site, risk_level, alert_msgs)
             
             if dispatch_report:
-                st.write("### 🛡️ Field Dispatch Status")
+                st.write("### Field Dispatch Status")
                 for entry in dispatch_report:
                     st.write(f"**{entry['Name']}**: {entry['Status']}")
             else:
@@ -271,7 +271,7 @@ with tab_dispatch:
 
 # Operational Reports/ Monthly dispatch report
     st.divider()
-    st.subheader("📊 Operational Reports")
+    st.subheader("Operational Reports")
     st.write("Download monthly dispatch logs for official reporting.")
     
     if os.path.exists("logs"):
@@ -288,7 +288,7 @@ with tab_dispatch:
             # Download Button
             with open(log_path, "rb") as f:
                 st.download_button(
-                    label=f"📥 Download {selected_log}",
+                    label=f"Download {selected_log}",
                     data=f,
                     file_name=selected_log,
                     mime="text/csv"
@@ -332,12 +332,12 @@ with tab_directory:
         hide_index=True,
     )
 
-    # if st.button("💾 Sync Directory & AOIs"):
+    # if st.button("Sync Directory & AOIs"):
     #     save_contacts(edited_df)
     #     st.success("AOI Assignments Saved.")
 
 with tab_help:
-    st.subheader("📚 FireLens Documentation Center")
+    st.subheader("FireLens Documentation Center")
     h_col1, h_col2 = st.columns([2, 1])
 
     with h_col1:
@@ -352,7 +352,7 @@ with tab_help:
             st.error(f"Could not load User Manual: {e}")
 
     with h_col2:
-        st.markdown("### ⚙️ Technical Resources")
+        st.markdown("### Technical Resources")
         
         # Download User Manual
         if 'manual_content' in locals():
