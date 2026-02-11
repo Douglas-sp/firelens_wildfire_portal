@@ -63,6 +63,8 @@ with st.sidebar:
     target_month = MONTH_MAP[target_month_name]
     
     # map_snapshot = st.file_uploader("Upload Map Snapshot", type=['png', 'jpg'])
+    # Disabled map snapshot uploader for now
+    map_snapshot = None  # st.file_uploader("Upload Map Snapshot", type=['png', 'jpg'])
 
     # Sidebar Footer - Positioned at the bottom
     st.markdown("""
