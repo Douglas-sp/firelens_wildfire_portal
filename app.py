@@ -98,7 +98,7 @@ with st.sidebar:
                 <span style='font-size: 0.75rem; color: #888;'>Update: """ + datetime.datetime.now().strftime('%H:%M:%S') + """ EAT</span>
             </div>
         </div>
-    """, unsafe_allow_html=True)
+    """, unsafe_allow_html=False)
 
 # --- 4. DATA SYNCHRONIZATION ---
 if 'ndvi' not in st.session_state or st.session_state.get('last_site_ndvi') != selected_site:
