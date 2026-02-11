@@ -64,6 +64,8 @@ with st.sidebar:
     
     # map_snapshot = st.file_uploader("Upload Map Snapshot", type=['png', 'jpg'])
     
+    st.footer("FireLens Uganda | Tactical Command")
+
     st.divider()
     st.markdown("<div style='display: flex; align-items: center;'><span class='heartbeat-icon'>●</span><span class='status-text'>SYSTEM LIVE</span></div>", unsafe_allow_html=True)
     st.caption(f"Update: {datetime.datetime.now().strftime('%H:%M:%S')} EAT")
