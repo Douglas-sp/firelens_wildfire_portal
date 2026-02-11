@@ -64,11 +64,15 @@ with st.sidebar:
     
     # map_snapshot = st.file_uploader("Upload Map Snapshot", type=['png', 'jpg'])
 
-    
-
-    # st.divider()
-    # st.markdown("<div style='display: flex; align-items: center;'><span class='heartbeat-icon'>●</span><span class='status-text'>SYSTEM LIVE</span></div>", unsafe_allow_html=True)
-    # st.caption(f"Update: {datetime.datetime.now().strftime('%H:%M:%S')} EAT")
+    # Sidebar Footer
+    st.divider()
+    st.markdown("""
+        <div style='display: flex; align-items: center; justify-content: center;'>
+            <span class='heartbeat-icon'>●</span>
+            <span class='status-text'>SYSTEM LIVE</span>
+        </div>
+    """, unsafe_allow_html=True)
+    st.caption(f"Update: {datetime.datetime.now().strftime('%H:%M:%S')} EAT")
 
 # --- 4. DATA SYNCHRONIZATION ---
 if 'ndvi' not in st.session_state or st.session_state.get('last_site_ndvi') != selected_site:
@@ -387,35 +391,3 @@ with tab_help:
             st.warning("Technical documentation not found.")
             
         st.success("✅ **Support Contact**\n\nTechnical Lead: Raymond\n\nEmail: wamaniray@gmail.com")
-
-# --- FOOTER ---
-st.markdown("""
-<style>
-.footer {
-    position: fixed;
-    left: 0;
-    bottom: 0;
-    width: 100%;
-    background-color: rgba(14, 17, 23, 0.95);
-    color: #fff;
-    text-align: center;
-    padding: 10px 0;
-    border-top: 1px solid #333;
-    z-index: 999;
-}
-.footer-content {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 15px;
-}
-</style>
-<div class="footer">
-    <div class="footer-content">
-        <span class='heartbeat-icon'>●</span>
-        <span class='status-text'>SYSTEM LIVE</span>
-        <span>|</span>
-        <span>Update: """ + datetime.datetime.now().strftime('%H:%M:%S') + """ EAT</span>
-    </div>
-</div>
-""", unsafe_allow_html=True)
