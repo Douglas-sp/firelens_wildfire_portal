@@ -64,15 +64,41 @@ with st.sidebar:
     
     # map_snapshot = st.file_uploader("Upload Map Snapshot", type=['png', 'jpg'])
 
-    # Sidebar Footer
-    st.divider()
+    # Sidebar Footer - Positioned at the bottom
     st.markdown("""
-        <div style='display: flex; align-items: center; justify-content: center;'>
-            <span class='heartbeat-icon'>●</span>
-            <span class='status-text'>SYSTEM LIVE</span>
+        <style>
+        .sidebar-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 280px;
+            background-color: rgba(14, 17, 23, 0.98);
+            padding: 15px 10px;
+            border-top: 1px solid #333;
+            z-index: 1000;
+        }
+        .sidebar-footer-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+        .sidebar-footer hr {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        </style>
+        <div class="sidebar-footer">
+            <hr style="margin: 0 0 10px 0; border-color: #333;">
+            <div class="sidebar-footer-content">
+                <div style='display: flex; align-items: center; gap: 8px;'>
+                    <span class='heartbeat-icon'>●</span>
+                    <span class='status-text'>SYSTEM LIVE</span>
+                </div>
+                <span style='font-size: 0.75rem; color: #888;'>Update: """ + datetime.datetime.now().strftime('%H:%M:%S') + """ EAT</span>
+            </div>
         </div>
     """, unsafe_allow_html=True)
-    st.caption(f"Update: {datetime.datetime.now().strftime('%H:%M:%S')} EAT")
 
 # --- 4. DATA SYNCHRONIZATION ---
 if 'ndvi' not in st.session_state or st.session_state.get('last_site_ndvi') != selected_site:
