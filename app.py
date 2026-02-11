@@ -62,7 +62,7 @@ with st.sidebar:
     target_month_name = st.select_slider("Forecast Month", options=list(MONTH_MAP.keys()))
     target_month = MONTH_MAP[target_month_name]
     
-    map_snapshot = st.file_uploader("Upload Map Snapshot", type=['png', 'jpg'])
+    # map_snapshot = st.file_uploader("Upload Map Snapshot", type=['png', 'jpg'])
     
     st.divider()
     st.markdown("<div style='display: flex; align-items: center;'><span class='heartbeat-icon'>●</span><span class='status-text'>SYSTEM LIVE</span></div>", unsafe_allow_html=True)
